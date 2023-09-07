@@ -37,14 +37,21 @@ def preprocess_label_details(df):
 class CerebrA:
     def __init__(self, download_dir="./data", download_data=True):
         # Define paths for required data
-        cerebra_in_head_path = f"{download_dir}/CerebrA_in_head.mgz"
+        # cerebra_in_head_path = f"{download_dir}/CerebrA_in_head.mgz"
         label_details_path = f"{download_dir}/CerebrA_LabelDetails.csv"
+
+        # TODO: move to GDrive
+        cerebra_in_head_path = (
+            "/home/carlos/Datasets/Cerebra/10.12751_g-node.be5e62/CerebrA_in_head.mgz"
+        )
+        brain_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/brain.mgz"
 
         # Create download folder if it does not exist
         if not os.path.exists(download_dir):
             os.makedirs(download_dir)
 
         # Download data if it is not present within download folder
+        # TODO: Modify volumes first and then make users download volume and labels only
         if download_data and not os.path.exists(cerebra_in_head_path):
             logging.info("Downloading CerebrA volume...")
             file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
@@ -59,31 +66,53 @@ class CerebrA:
         self.volume_data = np.array(self.cerebra_img.dataobj)
         self.label_details = preprocess_label_details(pd.read_csv(label_details_path))
 
+        self.brain_img = nib.load(brain_path)
+        self.brain_data = np.array(self.brain_img.dataobj)
+
+        # Add whitematter to volume data
+        self.volume_data[(self.brain_data != 0) & (self.volume_data == 0)] = 103
+        # Add white matter to label details
+        self.label_details.loc[len(self.label_details.index)] = [
+            None,
+            "White Matter",
+            103,
+        ]
+
     # TODO: Specify which coordinate frame are xyz
     # Given a point in a (256,256,256) 3d space, determines
     # which brain region it belongs to
     def get_region_name_from_point(self, x, y, z):
         label_id = self.volume_data[x, y, z]
-        print(label_id)
         if label_id == 0:
             return self.label_details[self.label_details["CerebrA ID"] == label_id]
 
-        return
-
     # Given a brain region name, get an array of points that
     # make up said region
-    def get_points_from_region_name(region_name):
-        pass
+    def get_points_from_region_name(self, region_name):
+        region_data = self.label_details[
+            self.label_details["Label Name"] == region_name
+        ]
+        if len(region_data) < 1:
+            return None
+        return self.get_points_from_region_id(region_data["CerebrA ID"].item())
 
     # Helper function for get_points_from_region_name
     # Does the same but with region id instead of region name
-    def get_points_from_region_id(id):
-        pass
+    def get_points_from_region_id(self, region_id):
+        return np.array(np.where(self.volume_data == region_id)).T
+
+    def get_region_name_from_region_id(self, region_id):
+        return self.label_details[self.label_details["CerebrA ID"] == region_id][
+            "Label Name"
+        ].item()
 
     def get_brain():
         pass
 
     def plot_mri_point():
+        pass
+
+    def get_closest_region_to_whitematter(self, x, y, z):
         pass
 
 
