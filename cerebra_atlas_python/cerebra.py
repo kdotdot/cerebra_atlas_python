@@ -6,8 +6,18 @@ import pandas as pd
 import mne
 import matplotlib.pyplot as plt
 
-from cerebra_atlas_python.utils import download_file_from_google_drive, setup_logging
-from cerebra_atlas_python.plotting import imshow_mri
+from cerebra_atlas_python.utils import (
+    download_file_from_google_drive,
+    setup_logging,
+    move_volume_from_LIA_to_RAS,
+    remove_ax,
+)
+from cerebra_atlas_python.plotting import (
+    imshow_mri,
+    plot_brain_slice_2D,
+    add_region_plot_to_ax,
+    plot_volume_3d,
+)
 
 # Download:
 # https://drive.google.com/file/d/13rfrvxVQe18ss2hccPy10DkKQdnNyjWL/view?usp=sharing
@@ -49,7 +59,7 @@ class CerebrA:
             "/home/carlos/Datasets/Cerebra/10.12751_g-node.be5e62/CerebrA_in_head.mgz"
         )
         t1_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/T1.mgz"
-        brain_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/brain.mgz"
+        brain_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/brain.mgz"  # TODO: use wm.mgz
 
         # Create download folder if it does not exist
         if not os.path.exists(download_dir):
@@ -67,19 +77,23 @@ class CerebrA:
             download_file_from_google_drive(file_id, label_details_path)
 
         # Read data
-        self.cerebra_img = nib.load(cerebra_in_head_path)  # LIA coordinate frame
-        self.volume_data = np.array(self.cerebra_img.dataobj)
-
         self.label_details = preprocess_label_details(pd.read_csv(label_details_path))
 
-        self.brain_img = nib.load(brain_path)  # LIA coordinate frame
-        self.brain_data = np.array(self.brain_img.dataobj)
+        cerebra_in_head_img = nib.load(cerebra_in_head_path)  # LIA coordinate frame
+        self.cerebra_volume, self.affine = move_volume_from_LIA_to_RAS(
+            np.array(cerebra_in_head_img.dataobj), cerebra_in_head_img.affine
+        )
 
-        self.t1_img = nib.load(t1_path)  # LIA coordinate frame
-        self.t1_data = np.array(self.t1_img.dataobj)
+        brain_img = nib.load(brain_path)  # LIA coordinate frame
+        self.brain_volume = move_volume_from_LIA_to_RAS(
+            np.array(brain_img.dataobj)
+        )  # Affine is shared with cerebra in head
+
+        t1_img = nib.load(t1_path)  # LIA coordinate frame
+        self.t1_volume = move_volume_from_LIA_to_RAS(np.array(t1_img.dataobj))
 
         # Add whitematter to volume data
-        self.volume_data[(self.brain_data != 0) & (self.volume_data == 0)] = 103
+        self.cerebra_volume[(self.brain_volume != 0) & (self.cerebra_volume == 0)] = 103
         # Add white matter to label details
         self.label_details.loc[len(self.label_details.index)] = [
             None,
@@ -87,10 +101,7 @@ class CerebrA:
             103,
         ]
 
-        # Move to RAS coordinate frame
-        self.volume_data = np.rot90(self.volume_data, -1, axes=(1, 2))
-        self.volume_data = np.flipud(self.volume_data)
-
+        # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
 
         # TODO: Look into sparse representations
@@ -99,13 +110,89 @@ class CerebrA:
         #     for region_id in self.region_ids
         # }
 
-    # Given a point in a (256,256,256) 3d space, determines
+    def orthoview(self, pt=None):
+        fig, axs = plt.subplots(2, 2, figsize=(12, 12))
+        plot_brain_slice_2D(
+            self.cerebra_volume, self.affine, axis=0, ax=axs[0, 0], pt=pt
+        )
+        plot_brain_slice_2D(
+            self.cerebra_volume, self.affine, axis=1, ax=axs[0, 1], pt=pt
+        )
+        plot_brain_slice_2D(
+            self.cerebra_volume, self.affine, axis=2, ax=axs[1, 0], pt=pt
+        )
+        remove_ax(axs[1, 1])
+
+        if pt is not None:
+            reg_name = self.get_region_name_from_point(pt)
+            reg_id = self.get_region_id_from_point(pt)
+            fig.suptitle(f"{reg_name} id ({reg_id})")
+
+        return axs
+
+    def plot_region_orthoview(self, region_id):
+        reg_name = self.get_region_name_from_region_id(region_id)
+
+        reg_points = self.get_points_from_region_id(region_id)
+        reg_centroid = self.find_region_centroid_from_name(reg_name)
+
+        fig, axs = plt.subplots(2, 2, figsize=(12, 12))
+        ax = plot_brain_slice_2D(
+            self.cerebra_volume,
+            self.affine,
+            axis=0,
+            ax=axs[0, 0],
+            cmap_name="gray",
+            plot_midlines=True,
+        )
+        add_region_plot_to_ax(ax, reg_points, reg_centroid, axis=0)
+
+        ax = plot_brain_slice_2D(
+            self.cerebra_volume,
+            self.affine,
+            axis=1,
+            ax=axs[0, 1],
+            cmap_name="gray",
+            plot_midlines=True,
+        )
+        add_region_plot_to_ax(ax, reg_points, reg_centroid, axis=1)
+
+        ax = plot_brain_slice_2D(
+            self.cerebra_volume,
+            self.affine,
+            axis=2,
+            ax=axs[1, 0],
+            cmap_name="gray",
+            plot_midlines=True,
+        )
+        add_region_plot_to_ax(ax, reg_points, reg_centroid, axis=2)
+
+        remove_ax(axs[1, 1])
+
+        fig.suptitle(reg_name)
+
+        return axs
+
+    def plot_3d(self):
+        plot_volume_3d(self.cerebra_volume)
+
+    def plot_region_3d(self, region_id):
+        pts = self.get_points_from_region_id(region_id)
+        plot_volume_3d(self.cerebra_volume, region_pts=pts)
+
+    # Given a point in a (256,256,256) 3d space (RAS), determines
     # which brain region it belongs to
-    # Point
     def get_region_name_from_point(self, point):
-        label_id = self.volume_data[x, y, z]
-        if label_id == 0:
-            return self.label_details[self.label_details["CerebrA ID"] == label_id]
+        label_id = self.cerebra_volume[point[0], point[1], point[2]]
+        if label_id != 0:
+            return self.label_details[self.label_details["CerebrA ID"] == label_id][
+                "Label Name"
+            ].item()
+
+    def get_region_id_from_point(self, point):
+        label_id = self.cerebra_volume[point[0], point[1], point[2]]
+        if label_id != 0:
+            return int(label_id)
 
     # Given a brain region name, get an array of points that
     # make up said region
@@ -120,7 +207,7 @@ class CerebrA:
     # Helper function for get_points_from_region_name
     # Does the same but with region id instead of region name
     def get_points_from_region_id(self, region_id):
-        return np.array(np.where(self.volume_data == region_id)).T
+        return np.array(np.where(self.cerebra_volume == region_id)).T
 
     def get_region_name_from_region_id(self, region_id):
         return self.label_details[self.label_details["CerebrA ID"] == region_id][
@@ -178,11 +265,6 @@ class CerebrA:
         slice2 = points[mask2]
         slice3 = points[mask3]
 
-    def orthoview(self, i=128, j=128, k=128):
-        slices = self.get_slices([i, j, k])
-
-        pass
-
     def plot_mri_ras(self, x, y, z, title="MRI slice", plot_all_ax=True, slices=None):
         if not plot_all_ax:
             fig = imshow_mri(
@@ -196,12 +278,7 @@ class CerebrA:
             )
         else:
             fig, axs = plt.subplots(2, 2, figsize=(12, 12))
-            axs[-1, -1].xaxis.set_visible(False)
-            axs[-1, -1].yaxis.set_visible(False)
-            axs[-1, -1].spines["top"].set_visible(False)
-            axs[-1, -1].spines["right"].set_visible(False)
-            axs[-1, -1].spines["bottom"].set_visible(False)
-            axs[-1, -1].spines["left"].set_visible(False)
+
             for i in range(3):
                 imshow_mri(
                     self.t1_data,
