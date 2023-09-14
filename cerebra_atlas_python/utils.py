@@ -44,28 +44,28 @@ def setup_logging(level=logging.DEBUG):
     )
 
 
-def move_volume_from_LIA_to_RAS(volume, affine=None):
+def move_volume_from_LIA_to_RAS(volume, _affine=None):
     volume = np.rot90(volume, -1, axes=(1, 2))
     volume = np.flipud(volume)
-    if affine is None:
+    if _affine is None:
         return volume
+
+    affine = _affine.copy()
+    # Switch from LIA to RIA
+    affine[0, -1] = 126  # Fix translation
+    affine[0, 0] = 1
+
+    # Switch from RIA to RSA
+    affine[1, -1] = 256 - affine[2, -1]
+    affine[2, 1] = 1
+
+    # Switch from RSA to RAS
     aff = affine.copy()
-    # Switch from LIA to LPS
     aff[1, :] = affine[2, :]
     aff[2, :] = affine[1, :]
-    # Switch from LPS to RAS
-    aff[0, :] = aff[0, :] * -1
-    aff[1, :] = aff[1, :] * -1
+    # affine[1, :], affine[2, :] = affine[2, :], affine[1, :] how?
+
     return volume, aff
-
-
-def remove_ax(ax):
-    ax.xaxis.set_visible(False)
-    ax.yaxis.set_visible(False)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["left"].set_visible(False)
 
 
 if __name__ == "__main__":

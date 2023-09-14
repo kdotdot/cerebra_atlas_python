@@ -10,13 +10,13 @@ from cerebra_atlas_python.utils import (
     download_file_from_google_drive,
     setup_logging,
     move_volume_from_LIA_to_RAS,
-    remove_ax,
 )
 from cerebra_atlas_python.plotting import (
-    imshow_mri,
     plot_brain_slice_2D,
     add_region_plot_to_ax,
     plot_volume_3d,
+    orthoview,
+    orthoview_region,
 )
 
 # Download:
@@ -110,64 +110,24 @@ class CerebrA:
         #     for region_id in self.region_ids
         # }
 
-    def orthoview(self, pt=None):
-        fig, axs = plt.subplots(2, 2, figsize=(12, 12))
-        plot_brain_slice_2D(
-            self.cerebra_volume, self.affine, axis=0, ax=axs[0, 0], pt=pt
-        )
-        plot_brain_slice_2D(
-            self.cerebra_volume, self.affine, axis=1, ax=axs[0, 1], pt=pt
-        )
-        plot_brain_slice_2D(
-            self.cerebra_volume, self.affine, axis=2, ax=axs[1, 0], pt=pt
-        )
-        remove_ax(axs[1, 1])
+    def orthoview(self, **kwargs):
+        fig, axs = orthoview(self.cerebra_volume, self.affine, **kwargs)
 
-        if pt is not None:
-            reg_name = self.get_region_name_from_point(pt)
-            reg_id = self.get_region_id_from_point(pt)
+        if "pt" in kwargs.keys() and kwargs["pt"] is not None:
+            reg_name = self.get_region_name_from_point(kwargs["pt"])
+            reg_id = self.get_region_id_from_point(kwargs["pt"])
             fig.suptitle(f"{reg_name} id ({reg_id})")
 
         return axs
 
-    def plot_region_orthoview(self, region_id):
+    def plot_region_orthoview(self, region_id, **kwargs):
         reg_name = self.get_region_name_from_region_id(region_id)
-
         reg_points = self.get_points_from_region_id(region_id)
         reg_centroid = self.find_region_centroid_from_name(reg_name)
 
-        fig, axs = plt.subplots(2, 2, figsize=(12, 12))
-        ax = plot_brain_slice_2D(
-            self.cerebra_volume,
-            self.affine,
-            axis=0,
-            ax=axs[0, 0],
-            cmap_name="gray",
-            plot_midlines=True,
+        fig, axs = orthoview_region(
+            reg_points, reg_centroid, self.cerebra_volume, self.affine, **kwargs
         )
-        add_region_plot_to_ax(ax, reg_points, reg_centroid, axis=0)
-
-        ax = plot_brain_slice_2D(
-            self.cerebra_volume,
-            self.affine,
-            axis=1,
-            ax=axs[0, 1],
-            cmap_name="gray",
-            plot_midlines=True,
-        )
-        add_region_plot_to_ax(ax, reg_points, reg_centroid, axis=1)
-
-        ax = plot_brain_slice_2D(
-            self.cerebra_volume,
-            self.affine,
-            axis=2,
-            ax=axs[1, 0],
-            cmap_name="gray",
-            plot_midlines=True,
-        )
-        add_region_plot_to_ax(ax, reg_points, reg_centroid, axis=2)
-
-        remove_ax(axs[1, 1])
 
         fig.suptitle(reg_name)
 
@@ -217,14 +177,12 @@ class CerebrA:
     def get_closest_region_to_whitematter(self, x, y, z):
         pass
 
-    def voxel_to_ras(self, x, y, z):
-        return mne.transforms.apply_trans(self.cerebra_img.affine, np.array([x, y, z]))
+    def voxel_to_ras(self, pt):
+        return mne.transforms.apply_trans(self.affine, pt)
 
-    def ras_to_voxel(self, x, y, z):
+    def ras_to_voxel(self, pt):
         return np.round(
-            mne.transforms.apply_trans(
-                np.linalg.inv(self.cerebra_img.affine), np.array([x, y, z])
-            )
+            mne.transforms.apply_trans(np.linalg.inv(self.affine), pt)
         ).astype(int)
 
     def find_region_centroid_from_name(self, region_name):
@@ -239,61 +197,6 @@ class CerebrA:
         return np.round(self.get_points_from_region_id(region_id).mean(axis=0)).astype(
             int
         )
-
-    def get_region_slices_from_id(self, region_id):
-        centroid = self.find_region_centroid_from_id(region_id)
-        points = self.get_points_from_region_id(region_id)
-        mask1 = points.T[0] == centroid[0]
-        mask2 = points.T[1] == centroid[1]
-        mask3 = points.T[2] == centroid[2]
-        slice1 = points[mask1]
-        slice2 = points[mask2]
-        slice3 = points[mask3]
-        return [slice1, slice2, slice3], centroid
-
-    def plot_mri_vox(self, x, y, z, title="MRI slice", plot_all_ax=True, slices=None):
-        vox = self.voxel_to_ras(x, y, z)
-        return self.plot_mri_ras(vox[0], vox[1], vox[2], title, plot_all_ax, slices)
-
-    def get_slices(self, ijk):
-        i, j, k = ijk
-
-        mask1 = self.volume_data == centroid[0]
-        mask2 = volume_data == centroid[1]
-        mask3 = points.T[2] == centroid[2]
-        slice1 = points[mask1]
-        slice2 = points[mask2]
-        slice3 = points[mask3]
-
-    def plot_mri_ras(self, x, y, z, title="MRI slice", plot_all_ax=True, slices=None):
-        if not plot_all_ax:
-            fig = imshow_mri(
-                self.t1_data,
-                self.t1_img,
-                self.ras_to_voxel(x, y, z),
-                {"Scanner RAS": np.array([x, y, z])},
-                title,
-                orientation_axis=0,
-                slices=slices,
-            )
-        else:
-            fig, axs = plt.subplots(2, 2, figsize=(12, 12))
-
-            for i in range(3):
-                imshow_mri(
-                    self.t1_data,
-                    self.t1_img,
-                    self.ras_to_voxel(x, y, z),
-                    {"Scanner RAS": np.array([x, y, z])},
-                    title,
-                    orientation_axis=i,
-                    ax=axs[i if i < 2 else 0, 1 if i == 2 else 0],
-                    slices=slices,
-                ),
-
-            fig.suptitle(title)
-            fig.subplots_adjust(0.1, 0.1, 0.95, 0.85)
-        return fig
 
 
 if __name__ == "__main__":
