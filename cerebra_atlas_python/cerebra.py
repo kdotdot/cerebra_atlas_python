@@ -178,12 +178,12 @@ class CerebrA:
         pass
 
     def voxel_to_ras(self, pt):
-        return mne.transforms.apply_trans(self.affine, pt)
+        return mne.transforms.apply_trans(self.affine, pt).astype(int)
 
     def ras_to_voxel(self, pt):
         return np.round(
             mne.transforms.apply_trans(np.linalg.inv(self.affine), pt)
-        ).astype(int)
+        )  # NOTE: removed .astype(int)
 
     def find_region_centroid_from_name(self, region_name):
         region_data = self.label_details[
