@@ -1,5 +1,8 @@
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
 import nibabel as nib
 import numpy as np
 
@@ -50,8 +53,7 @@ def plot_brain_slice_2D(
     ys = []
     cs = []
 
-    norm = plt.Normalize(0, n_classes)
-    cmap = get_cmap(n_classes, name=cmap_name)
+    colors = get_cmap_colors()
 
     for i in range(3):
         for x in range(0, 256, 1):
@@ -69,9 +71,9 @@ def plot_brain_slice_2D(
 
                     xs.append(x)
                     ys.append(y)
-                    cs.append(val)
+                    cs.append(colors[int(val)])
 
-        ax.scatter(xs, ys, c=cs, cmap=cmap, s=0.3)
+        ax.scatter(xs, ys, c=cs, s=0.3)
 
     codes = nib.orientations.aff2axcodes(affine)
 
@@ -156,10 +158,19 @@ def add_region_plot_to_ax(ax, pts, centroid, axis=0):
     return ax
 
 
-def get_cmap(n, name="hsv"):
-    """Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
-    RGB color; the keyword argument name must be a standard mpl colormap name."""
-    return plt.cm.get_cmap(name, n)
+def get_cmap_colors():
+    cmap = matplotlib.colormaps["gist_rainbow"]
+    colors = cmap(np.linspace(0, 1, 104))
+    white = np.array([1, 0.87, 0.87, 1])
+    colors[-1] = white
+    black = np.array([0, 0, 0, 1])
+    colors[0] = black
+    return colors
+
+
+def get_cmap():
+    newcmp = ListedColormap(get_cmap_colors())
+    return newcmp
 
 
 def get_3d_fig_ax():
@@ -187,8 +198,7 @@ def plot_volume_3d(
     zs = []
     cs = []
 
-    norm = plt.Normalize(0, n_classes)
-    cmap = get_cmap(n_classes)
+    cmap = get_cmap()
 
     for x in range(0, 256, density):
         for y in range(0, 256, density):

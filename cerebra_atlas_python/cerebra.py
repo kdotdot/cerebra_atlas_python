@@ -95,12 +95,7 @@ class CerebrA:
         # Add whitematter to volume data
         self.cerebra_volume[(self.brain_volume != 0) & (self.cerebra_volume == 0)] = 103
         # Add white matter to label details
-        self.label_details.loc[len(self.label_details.index)] = [
-            None,
-            "White Matter",
-            103,
-        ]
-
+        self.label_details.loc[len(self.label_details.index)] = [0, "White matter", 103]
         self.region_points_cache = {}
 
         # Metadata
