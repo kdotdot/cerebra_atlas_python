@@ -101,6 +101,8 @@ class CerebrA:
             103,
         ]
 
+        self.region_points_cache = {}
+
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
 
@@ -134,7 +136,7 @@ class CerebrA:
         return axs
 
     def plot_3d(self):
-        plot_volume_3d(self.cerebra_volume)
+        return plot_volume_3d(self.cerebra_volume, density=8)
 
     def plot_region_3d(self, region_id):
         pts = self.get_points_from_region_id(region_id)
@@ -167,15 +169,45 @@ class CerebrA:
     # Helper function for get_points_from_region_name
     # Does the same but with region id instead of region name
     def get_points_from_region_id(self, region_id):
-        return np.array(np.where(self.cerebra_volume == region_id)).T
+        if region_id not in self.region_points_cache.keys():
+            self.region_points_cache[region_id] = np.array(
+                np.where(self.cerebra_volume == region_id)
+            ).T
+        return self.region_points_cache[region_id]
 
     def get_region_name_from_region_id(self, region_id):
         return self.label_details[self.label_details["CerebrA ID"] == region_id][
             "Label Name"
         ].item()
 
-    def get_closest_region_to_whitematter(self, x, y, z):
-        pass
+    def get_closest_region_to_whitematter(self, pt, n_max=10):
+        region_id = self.get_region_id_from_point(pt)
+        if region_id != 103:
+            logging.warning(
+                "Attempting to get closest region to whitematter from a non-whitematter region"
+            )
+            return None
+
+        # Search around the point
+        for i in range(n_max):
+            for inc_id in range(1, 8):
+                inc = (
+                    np.array(list(bin(inc_id).split("b")[-1].rjust(3, "0"))).astype(int)
+                    * i
+                )  # 001, 010 ... 111
+
+                pt1 = pt.copy() + inc
+                pt2 = pt.copy() - inc
+
+                region1 = self.get_region_id_from_point(pt1)
+                if region1 is not None and region1 != 103:
+                    return pt1, region1
+
+                region2 = self.get_region_id_from_point(pt2)
+                if region2 is not None and region2 != 103:
+                    return pt2, region2
+
+        return None, None
 
     def voxel_to_ras(self, pt):
         return mne.transforms.apply_trans(self.affine, pt).astype(int)

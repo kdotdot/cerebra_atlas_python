@@ -162,8 +162,25 @@ def get_cmap(n, name="hsv"):
     return plt.cm.get_cmap(name, n)
 
 
-def plot_volume_3d(volume, n_classes=103, plot_whitematter=False, region_pts=None):
-    ax = plt.figure().add_subplot(projection="3d")
+def get_3d_fig_ax():
+    fig = plt.figure()
+    ax = fig.add_subplot(projection="3d")
+
+    ax.set_xlabel("X (R)")
+    ax.set_ylabel("Y (A)")
+    ax.set_zlabel("Z (S)")
+
+    ax.set_xlim([0, 256])
+    ax.set_ylim([0, 256])
+    ax.set_zlim([0, 256])
+
+    return fig, ax
+
+
+def plot_volume_3d(
+    volume, n_classes=103, plot_whitematter=False, region_pts=None, density=8, alpha=0.1
+):
+    fig, ax = get_3d_fig_ax()
 
     xs = []
     ys = []
@@ -173,9 +190,9 @@ def plot_volume_3d(volume, n_classes=103, plot_whitematter=False, region_pts=Non
     norm = plt.Normalize(0, n_classes)
     cmap = get_cmap(n_classes)
 
-    for x in range(0, 256, 4):
-        for y in range(0, 256, 4):
-            for z in range(0, 256, 4):
+    for x in range(0, 256, density):
+        for y in range(0, 256, density):
+            for z in range(0, 256, density):
                 if volume[x, y, z] != 0:
                     if volume[x, y, z] == 103 and not plot_whitematter:
                         continue
@@ -187,19 +204,15 @@ def plot_volume_3d(volume, n_classes=103, plot_whitematter=False, region_pts=Non
                     else:
                         cs.append((0.8, 0.8, 0.8))
 
-    ax.scatter(xs, ys, zs, c=cs, cmap=cmap, alpha=0.01 if region_pts is not None else 1)
+    ax.scatter(
+        xs, ys, zs, c=cs, cmap=cmap, alpha=0.01 if region_pts is not None else alpha
+    )
 
     if region_pts is not None:
         xs, ys, zs = region_pts.T[0], region_pts.T[1], region_pts.T[2]
         ax.scatter(xs, ys, zs, c="red")
 
-    ax.set_xlabel("X (R)")
-    ax.set_ylabel("Y (A)")
-    ax.set_zlabel("Z (S)")
-
-    ax.set_xlim([0, 256])
-    ax.set_ylim([0, 256])
-    ax.set_zlim([0, 256])
+    return fig, ax
 
 
 def remove_ax(ax):
