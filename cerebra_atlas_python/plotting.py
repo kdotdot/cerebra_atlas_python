@@ -25,8 +25,12 @@ def plot_brain_slice_2D(
     axis=0,
     fixed_value=None,
     n_classes=103,
+    plot_regions=False,
     plot_whitematter=False,
+    plot_empty=False,
+    src_space=None,
     cmap_name="hsv",
+    s=0.3,
     ax=None,
     pt=None,
     plot_affine=False,
@@ -55,7 +59,7 @@ def plot_brain_slice_2D(
 
     colors = get_cmap_colors()
 
-    for i in range(3):
+    for i in range(1):  # NOTE: Layering (off)
         for x in range(0, 256, 1):
             for y in range(0, 256, 1):
                 if axis == 0:
@@ -65,15 +69,17 @@ def plot_brain_slice_2D(
                 elif axis == 2:
                     val = volume_data[x, y, fixed_value - i]
 
-                if val != 0:
-                    if val == 103 and not plot_whitematter:
-                        continue
+                if val == 0 and not plot_empty:
+                    continue
+                if val == 103 and not plot_whitematter:
+                    continue
+                if val != 0 and val != 103 and not plot_regions:
+                    continue
+                xs.append(x)
+                ys.append(y)
+                cs.append(colors[int(val)])
 
-                    xs.append(x)
-                    ys.append(y)
-                    cs.append(colors[int(val)])
-
-        ax.scatter(xs, ys, c=cs, s=0.3)
+        ax.scatter(xs, ys, s=s, c=cs)  # , c=
 
     codes = nib.orientations.aff2axcodes(affine)
 
@@ -130,6 +136,31 @@ def plot_brain_slice_2D(
             alpha=0.5,
             colors="orange",
         )
+
+    if src_space is not None:
+        xs = []
+        ys = []
+        cs = []
+
+        should_plot = False
+        for i in range(10):  # Layering
+            for x in range(0, 256, 1):
+                for y in range(0, 256, 1):
+                    if axis == 0:
+                        val = src_space[fixed_value - i, x, y]
+                    elif axis == 1:
+                        val = src_space[x, fixed_value - i, y]
+                    elif axis == 2:
+                        val = src_space[x, y, fixed_value - i]
+
+                    if val > 0:
+                        should_plot = True
+                        xs.append(x)
+                        ys.append(y)
+                        cs.append("#333" if val == 1 else "#DDD")
+            if should_plot:
+                break
+        ax.scatter(xs, ys, s=s, c=cs)  # , c=
 
     return ax
 
@@ -191,16 +222,19 @@ def get_3d_fig_ax():
 
 
 def plot_volume_3d(
-    volume, n_classes=103, plot_whitematter=False, region_pts=None, density=8, alpha=0.1
+    volume, plot_whitematter=False, region_pts=None, density=8, alpha=0.1, ax=None
 ):
-    fig, ax = get_3d_fig_ax()
+    fig = None
+    if ax is None:
+        print("restart")
+        fig, ax = get_3d_fig_ax()
 
     xs = []
     ys = []
     zs = []
     cs = []
 
-    cmap = get_cmap()
+    cmap_colors = get_cmap_colors()
 
     for x in range(0, 256, density):
         for y in range(0, 256, density):
@@ -212,17 +246,23 @@ def plot_volume_3d(
                     ys.append(y)
                     zs.append(z)
                     if region_pts is None:
-                        cs.append(volume[x, y, z])
+                        cs.append(cmap_colors[int(volume[x, y, z])])
                     else:
-                        cs.append((0.8, 0.8, 0.8))
+                        cs.append((1, 1, 1))
 
-    ax.scatter(
-        xs, ys, zs, c=cs, cmap=cmap, alpha=0.01 if region_pts is not None else alpha
-    )
+    ax.scatter(xs, ys, zs, c=cs, alpha=0.01 if region_pts is not None else alpha)
 
     if region_pts is not None:
-        xs, ys, zs = region_pts.T[0], region_pts.T[1], region_pts.T[2]
-        ax.scatter(xs, ys, zs, c="red")
+        xs = []
+        ys = []
+        zs = []
+        cs = []
+        for i in range(0, len(region_pts), density):
+            xs.append(region_pts.T[0][i])
+            ys.append(region_pts.T[1][i])
+            zs.append(region_pts.T[2][i])
+        # xs, ys, zs = region_pts.T[0], region_pts.T[1], region_pts.T[2]
+        ax.scatter(xs, ys, zs, c="red", alpha=alpha)
 
     return fig, ax
 

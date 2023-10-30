@@ -10,6 +10,7 @@ from cerebra_atlas_python.utils import (
     download_file_from_google_drive,
     setup_logging,
     move_volume_from_LIA_to_RAS,
+    expand_volume,
 )
 from cerebra_atlas_python.plotting import (
     plot_brain_slice_2D,
@@ -17,7 +18,10 @@ from cerebra_atlas_python.plotting import (
     plot_volume_3d,
     orthoview,
     orthoview_region,
+    get_3d_fig_ax,
 )
+
+from cerebra_atlas_python.MNIAverage import MNIAverage
 
 # Download:
 # https://drive.google.com/file/d/13rfrvxVQe18ss2hccPy10DkKQdnNyjWL/view?usp=sharing
@@ -49,7 +53,12 @@ def preprocess_label_details(df):
 
 
 class CerebrA:
-    def __init__(self, download_dir="./data", download_data=True):
+    def __init__(
+        self,
+        download_dir="./data",
+        download_data=True,
+        **kwargs,
+    ):
         # Define paths for required data
         # cerebra_in_head_path = f"{download_dir}/CerebrA_in_head.mgz"
         label_details_path = f"{download_dir}/CerebrA_LabelDetails.csv"
@@ -59,7 +68,8 @@ class CerebrA:
             "/home/carlos/Datasets/Cerebra/10.12751_g-node.be5e62/CerebrA_in_head.mgz"
         )
         t1_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/T1.mgz"
-        brain_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/brain.mgz"  # TODO: use wm.mgz
+        # brain_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/brain.mgz"  # TODO: use wm.mgz
+        wm_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/wm.asegedit.mgz"
 
         # Create download folder if it does not exist
         if not os.path.exists(download_dir):
@@ -84,16 +94,32 @@ class CerebrA:
             np.array(cerebra_in_head_img.dataobj), cerebra_in_head_img.affine
         )
 
-        brain_img = nib.load(brain_path)  # LIA coordinate frame
-        self.brain_volume = move_volume_from_LIA_to_RAS(
-            np.array(brain_img.dataobj)
+        # brain_img = nib.load(brain_path)  # LIA coordinate frame
+        # self.brain_volume = move_volume_from_LIA_to_RAS(
+        #     np.array(brain_img.dataobj)
+        # )  # Affine is shared with cerebra in head
+
+        self.mniAverage = MNIAverage(
+            "/home/carlos/Carlos/source-localization/generated"
+        )
+
+        wm_img = nib.load(wm_path)  # LIA coordinate frame
+        self.wm_volume = move_volume_from_LIA_to_RAS(
+            np.array(wm_img.dataobj)
         )  # Affine is shared with cerebra in head
+        self.wm_volume[self.wm_volume != 0] = 103
 
         t1_img = nib.load(t1_path)  # LIA coordinate frame
         self.t1_volume = move_volume_from_LIA_to_RAS(np.array(t1_img.dataobj))
 
+        # expand_volume(self.wm_volume, perimeter=4)
+        # cerebra_volume_exp = expand_volume(self.cerebra_volume.copy(), perimeter=10)
+
+        # self.brain_mask = np.zeros((256, 256, 256)).astype(int)
+        # self.brain_mask[mask_pts[0], mask_pts[1], mask_pts[2]] = 103
+
         # Add whitematter to volume data
-        self.cerebra_volume[(self.brain_volume != 0) & (self.cerebra_volume == 0)] = 103
+        self.cerebra_volume[(self.wm_volume != 0) & (self.cerebra_volume == 0)] = 103
         # Add white matter to label details
         self.label_details.loc[len(self.label_details.index)] = [0, "White matter", 103]
         self.region_points_cache = {}
@@ -107,8 +133,12 @@ class CerebrA:
         #     for region_id in self.region_ids
         # }
 
-    def orthoview(self, **kwargs):
-        fig, axs = orthoview(self.cerebra_volume, self.affine, **kwargs)
+    def orthoview(self, plot_src_space=False, **kwargs):
+        src = None
+        if plot_src_space:
+            src = self.mniAverage.get_src_volume(transform=self.affine)
+
+        fig, axs = orthoview(self.cerebra_volume, self.affine, src_space=src, **kwargs)
 
         if "pt" in kwargs.keys() and kwargs["pt"] is not None:
             reg_name = self.get_region_name_from_point(kwargs["pt"])
@@ -117,7 +147,10 @@ class CerebrA:
 
         return axs
 
-    def plot_region_orthoview(self, region_id, **kwargs):
+    def plot_region_orthoview(self, region_id, plot_src_space=False, **kwargs):
+        src = None
+        if plot_src_space:
+            src = self.mniAverage.get_src_volume(transform=cerebra.affine)
         reg_name = self.get_region_name_from_region_id(region_id)
         reg_points = self.get_points_from_region_id(region_id)
         reg_centroid = self.find_region_centroid_from_name(reg_name)
@@ -128,6 +161,7 @@ class CerebrA:
             self.cerebra_volume,
             self.affine,
             region_id,
+            src_space=src,
             **kwargs,
         )
 
@@ -135,12 +169,22 @@ class CerebrA:
 
         return axs
 
-    def plot_3d(self):
-        return plot_volume_3d(self.cerebra_volume, density=8)
+    def plot_3d(self, alpha=1):
+        return plot_volume_3d(self.cerebra_volume, density=6, alpha=alpha)
 
-    def plot_region_3d(self, region_id):
+    def plot_region_3d(
+        self,
+        region_id,
+    ):
         pts = self.get_points_from_region_id(region_id)
-        plot_volume_3d(self.cerebra_volume, region_pts=pts)
+        plot_volume_3d(self.cerebra_volume, region_pts=pts, density=6)
+
+    def plot_whitematter_3d(self, **kwargs):
+        pts = self.get_points_from_region_id(103)
+        fig, ax = plot_volume_3d(self.cerebra_volume, density=6, alpha=0.5)
+        _, ax = plot_volume_3d(
+            self.cerebra_volume, region_pts=pts, density=64, ax=ax, **kwargs
+        )
 
     # Given a point in a (256,256,256) 3d space (RAS), determines
     # which brain region it belongs to
@@ -183,13 +227,13 @@ class CerebrA:
             "Label Name"
         ].item()
 
-    def get_closest_region_to_whitematter(self, pt, n_max=10):
+    def get_closest_region_to_whitematter(self, pt, n_max=20):
         success = False
 
         region_id = self.get_region_id_from_point(pt)
-        if region_id != 103:
+        if region_id != 103 and region_id != 0:
             logging.warning(
-                "Attempting to get closest region to whitematter from a non-whitematter region"
+                f"Attempting to get closest region to whitematter from a non-whitematter region -> {region_id= }"
             )
             return success, None, None
 
@@ -214,7 +258,10 @@ class CerebrA:
                     success = True
                     return success, pt2, region2
 
-        return success, None, None
+        logging.warning(
+            f"get_closest_region_to_whitematter unable to find close region {n_max= }"
+        )
+        return success, pt, region_id
 
     def voxel_to_ras(self, pt):
         return mne.transforms.apply_trans(self.affine, pt).astype(int)
