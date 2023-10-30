@@ -134,7 +134,19 @@ def plot_brain_slice_2D(
     return ax
 
 
-def add_region_plot_to_ax(ax, pts, centroid, axis=0):
+def get_cmap_colors():
+    cmap = matplotlib.colormaps["gist_rainbow"]
+    colors = cmap(np.linspace(0, 1, 104))
+    white = np.array([1, 0.87, 0.87, 1])
+    colors[-1] = white
+    black = np.array([0, 0, 0, 1])
+    colors[0] = black
+    return colors
+
+
+def add_region_plot_to_ax(
+    ax, pts, centroid, region_id, axis=0, colors=get_cmap_colors()
+):
     if axis == 0:
         x_label = 1
         y_label = 2
@@ -153,19 +165,9 @@ def add_region_plot_to_ax(ax, pts, centroid, axis=0):
         xs.append(pt[x_label])
         ys.append(pt[y_label])
 
-    ax.scatter(xs, ys, s=0.7)
+    ax.scatter(xs, ys, s=0.7, c=colors[region_id])
 
     return ax
-
-
-def get_cmap_colors():
-    cmap = matplotlib.colormaps["gist_rainbow"]
-    colors = cmap(np.linspace(0, 1, 104))
-    white = np.array([1, 0.87, 0.87, 1])
-    colors[-1] = white
-    black = np.array([0, 0, 0, 1])
-    colors[0] = black
-    return colors
 
 
 def get_cmap():
@@ -266,12 +268,19 @@ def orthoview(volume, affine, center_pt=None, **kwargs):
     return fig, axs
 
 
-def orthoview_region(reg_points, reg_centroid, volume, affine, **kwargs):
+def orthoview_region(reg_points, reg_centroid, region_id, volume, affine, **kwargs):
     fig, axs = orthoview(
         volume, affine, center_pt=reg_centroid, cmap_name="gray", **kwargs
     )
-    add_region_plot_to_ax(axs[0, 0], reg_points, reg_centroid, axis=0)
-    add_region_plot_to_ax(axs[0, 1], reg_points, reg_centroid, axis=1)
-    add_region_plot_to_ax(axs[1, 0], reg_points, reg_centroid, axis=2)
+    colors = get_cmap_colors()
+    add_region_plot_to_ax(
+        axs[0, 0], reg_points, reg_centroid, region_id, axis=0, colors=colors
+    )
+    add_region_plot_to_ax(
+        axs[0, 1], reg_points, reg_centroid, region_id, axis=1, colors=colors
+    )
+    add_region_plot_to_ax(
+        axs[1, 0], reg_points, reg_centroid, region_id, axis=2, colors=colors
+    )
 
     return fig, axs
