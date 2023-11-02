@@ -11,6 +11,7 @@ from cerebra_atlas_python.utils import (
     setup_logging,
     move_volume_from_LIA_to_RAS,
     expand_volume,
+    find_closest_point,
 )
 from cerebra_atlas_python.plotting import (
     plot_brain_slice_2D,
@@ -57,7 +58,11 @@ class CerebrA:
         self,
         download_dir="./data",
         download_data=True,
-        **kwargs,
+        mniAverage=None,
+        MNIAverageKwArgs={
+            "mniAverage_output_path": "/home/carlos/Carlos/source-localization/generated"
+        },
+        # **kwargs,
     ):
         # Define paths for required data
         # cerebra_in_head_path = f"{download_dir}/CerebrA_in_head.mgz"
@@ -98,10 +103,14 @@ class CerebrA:
         # self.brain_volume = move_volume_from_LIA_to_RAS(
         #     np.array(brain_img.dataobj)
         # )  # Affine is shared with cerebra in head
+        if mniAverage is None:
+            self.mniAverage = MNIAverage(**MNIAverageKwArgs)
+        else:
+            assert (
+                type(mniAverage) == "MNIAverage"
+            ), f"Wrong class should be MNIAverage{type(mniAverage)= }"
 
-        self.mniAverage = MNIAverage(
-            "/home/carlos/Carlos/source-localization/generated"
-        )
+            self.mniAverage = mniAverage
 
         wm_img = nib.load(wm_path)  # LIA coordinate frame
         self.wm_volume = move_volume_from_LIA_to_RAS(
@@ -133,12 +142,40 @@ class CerebrA:
         #     for region_id in self.region_ids
         # }
 
-    def orthoview(self, plot_src_space=False, **kwargs):
+    def get_bem_surfaces(self):
+        return self.mniAverage.get_bem_surfaces(transform=self.affine)
+
+    def get_src_volume(self):
+        return self.mniAverage.get_src_volume(transform=self.affine)
+
+    def orthoview(
+        self,
+        plot_src_space=False,
+        plot_bem_surfaces=False,
+        plot_distance_to_inner_skull=False,
+        **kwargs,
+    ):
         src = None
         if plot_src_space:
-            src = self.mniAverage.get_src_volume(transform=self.affine)
+            src = self.get_src_volume()
 
-        fig, axs = orthoview(self.cerebra_volume, self.affine, src_space=src, **kwargs)
+        bem_surfaces = None
+        if plot_bem_surfaces:
+            bem_surfaces = self.get_bem_surfaces()
+
+        pt_dist = None
+        if "pt" in kwargs.keys() and plot_distance_to_inner_skull:
+            pt = kwargs["pt"]
+            pt_dist = self.get_distance_to_inner_skull(pt)
+
+        fig, axs = orthoview(
+            self.cerebra_volume,
+            self.affine,
+            src_space=src,
+            bem_surfaces=bem_surfaces,
+            pt_dist=pt_dist,
+            **kwargs,
+        )
 
         if "pt" in kwargs.keys() and kwargs["pt"] is not None:
             reg_name = self.get_region_name_from_point(kwargs["pt"])
@@ -226,6 +263,12 @@ class CerebrA:
         return self.label_details[self.label_details["CerebrA ID"] == region_id][
             "Label Name"
         ].item()
+
+    def get_distance_to_inner_skull(self, pt):
+        _, _, inner_skull_points = self.get_bem_surfaces()
+        closest_point, distance = find_closest_point(inner_skull_points, pt)
+
+        return closest_point, distance
 
     def get_closest_region_to_whitematter(self, pt, n_max=20):
         success = False

@@ -190,6 +190,24 @@ def expand_volume(volume, perimeter=2):
     return volume
 
 
+def find_closest_point(points, target_point):
+    # Convert the points array and target point to numpy arrays if they aren't already
+    points = np.asarray(points)
+    target_point = np.asarray(target_point)
+
+    # Calculate the difference between each point in the array and the target point
+    differences = points - target_point
+
+    # Calculate the Euclidean distance for each point in the array
+    distances = np.linalg.norm(differences, axis=1)
+
+    # Find the index of the closest point
+    closest_point_index = np.argmin(distances)
+
+    # Return the closest point
+    return points[closest_point_index], distances[closest_point_index]
+
+
 if __name__ == "__main__":
     file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
     destination = "./cer.mgz"

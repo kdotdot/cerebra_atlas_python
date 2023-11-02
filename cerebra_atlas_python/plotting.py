@@ -21,7 +21,7 @@ ori_names = dict(
 # takes in brain voxel volume (RAS)
 def plot_brain_slice_2D(
     volume_data,
-    affine=None,
+    affine,
     axis=0,
     fixed_value=None,
     n_classes=103,
@@ -29,6 +29,8 @@ def plot_brain_slice_2D(
     plot_whitematter=False,
     plot_empty=False,
     src_space=None,
+    bem_surfaces=None,
+    pt_dist=None,
     cmap_name="hsv",
     s=0.3,
     ax=None,
@@ -52,6 +54,14 @@ def plot_brain_slice_2D(
         fixed_value = pt[axis]
     elif fixed_value is None:
         fixed_value = int(affine[:, -1][axis])
+
+    if bem_surfaces is not None:
+        colors = ["#739072", "#4F6F52", "#3A4D39"]
+        for i, surf in enumerate(bem_surfaces):
+            mask = (surf.T[axis] > fixed_value - 1) & surf.T[axis] < fixed_value
+            xs, ys = surf[mask, x_label], surf[mask, y_label]
+            alpha = 0.10 + 0.1 * i
+            ax.scatter(xs, ys, c=colors[i], alpha=alpha, s=alpha)  # , c=
 
     xs = []
     ys = []
@@ -104,6 +114,7 @@ def plot_brain_slice_2D(
         220,
         f"""{codes[axis]} ({ax_labels[axis]})= {fixed_value}
         {"".join(codes)}     
+        {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
         """,
     ).set_fontsize(10)
 
@@ -161,6 +172,16 @@ def plot_brain_slice_2D(
             if should_plot:
                 break
         ax.scatter(xs, ys, s=s, c=cs)  # , c=
+
+    if pt_dist is not None:
+        inner_skull_pt, inner_skull_dist = pt_dist
+        print(inner_skull_pt, inner_skull_dist)
+        ax.plot(
+            [inner_skull_pt[x_label], pt[x_label]],
+            [inner_skull_pt[y_label], pt[y_label]],
+            marker="o",
+            c="red",
+        )
 
     return ax
 
