@@ -175,7 +175,6 @@ def plot_brain_slice_2D(
 
     if pt_dist is not None:
         inner_skull_pt, inner_skull_dist = pt_dist
-        print(inner_skull_pt, inner_skull_dist)
         ax.plot(
             [inner_skull_pt[x_label], pt[x_label]],
             [inner_skull_pt[y_label], pt[y_label]],

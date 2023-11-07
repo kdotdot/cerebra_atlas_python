@@ -136,6 +136,8 @@ class CerebrA:
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
 
+        self.bem_surfaces = None
+        self.src_volume = None
         # TODO: Look into sparse representations
         # self.volume_data_sparse = {
         #     region_id: self.get_points_from_region_id(region_id)
@@ -143,10 +145,14 @@ class CerebrA:
         # }
 
     def get_bem_surfaces(self):
-        return self.mniAverage.get_bem_surfaces(transform=self.affine)
+        if self.bem_surfaces is None:
+            self.bem_surfaces = self.mniAverage.get_bem_surfaces(transform=self.affine)
+        return self.bem_surfaces
 
     def get_src_volume(self):
-        return self.mniAverage.get_src_volume(transform=self.affine)
+        if self.src_volume is None:
+            self.src_volume = self.mniAverage.get_src_volume(transform=self.affine)
+        return self.src_volume
 
     def orthoview(
         self,

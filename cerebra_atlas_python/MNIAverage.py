@@ -12,7 +12,6 @@ class MNIAverage:
         self,
         mniAverage_output_path="./generated",
         subjects_dir=os.getenv("SUBJECTS_DIR"),
-        manual_fit_fiducials=True,
         bem_conductivity=(0.33, 0.0042, 0.33),
         bem_ico=4,
     ):
@@ -29,7 +28,6 @@ class MNIAverage:
 
         self.bem_ico = bem_ico
         self.subjects_dir = subjects_dir
-        self.manual_fit_fiducials = manual_fit_fiducials
         self.bem_conductivity = bem_conductivity
         self.bem_path = op.join(
             mniAverage_output_path,
@@ -106,21 +104,10 @@ class MNIAverage:
 
     # Same for BEM
     def _set_fiducials(self):
-        self.fiducials = mne.coreg.get_mni_fiducials("MNIAverage")
-        if self.manual_fit_fiducials:
-            shift_x = 0
-            shift_y = 0.005
-            shift_z = -0.005
-            # Manual fit (Works for EEG-MI & ERP-Core, might be different for other datasets)
-            self.fiducials[0]["r"] = np.array(self.fiducials[0]["r"]) - np.array(
-                [shift_x, shift_y, shift_z]
-            )
-            self.fiducials[1]["r"] = np.array(self.fiducials[1]["r"]) - np.array(
-                [shift_x, shift_y, shift_z]
-            )
-            self.fiducials[2]["r"] = np.array(self.fiducials[2]["r"]) - np.array(
-                [shift_x, shift_y, shift_z]
-            )
+        # self.fiducials = mne.coreg.get_mni_fiducials("MNIAverage")
+        self.fiducials, _coordinate_frame = mne.io.read_fiducials(
+            "/home/carlos/Datasets/subjects/MNIAverage/bem/MNIAverage-fiducials.fif"
+        )
 
     def index_to_ras(self, idx):
         src = self.vol_src[0]
@@ -128,5 +115,11 @@ class MNIAverage:
 
 
 if __name__ == "__main__":
-    mniAverage = MNIAverage()
+    mniAverage = MNIAverage(
+        mniAverage_output_path="/home/carlos/Carlos/source-localization/generated",
+        manual_fit_fiducials=True,
+    )
+    mne.viz.plot_bem("MNIAverage")
+    mniAverage.vol_src.plot()
+
     print(mniAverage)
