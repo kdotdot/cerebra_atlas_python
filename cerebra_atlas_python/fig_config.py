@@ -15,7 +15,7 @@ def figure_features(tex=True, font="serif", dpi=180):
         {
             "font.size": 20,
             "font.family": font,
-            "text.usetex": tex,
+            # "text.usetex": tex,
             "figure.subplot.top": 0.9,
             "figure.subplot.right": 0.9,
             "figure.subplot.left": 0.15,

@@ -27,7 +27,7 @@ def plot_brain_slice_2D(
     n_classes=103,
     plot_regions=False,
     plot_whitematter=False,
-    plot_empty=False,
+    plot_empty=True,
     src_space=None,
     bem_surfaces=None,
     pt_dist=None,
@@ -103,11 +103,15 @@ def plot_brain_slice_2D(
     ax.set_xlim([0, 256])
     ax.set_ylim([0, 256])
 
-    ax.text(120, 10, inverse_codes[codes[y_label]])
-    ax.text(120, 240, codes[y_label])
+    ax.text(
+        120, 10, inverse_codes[codes[y_label]], c="white" if plot_empty else "black"
+    )
+    ax.text(120, 240, codes[y_label], c="white" if plot_empty else "black")
 
-    ax.text(10, 120, inverse_codes[codes[x_label]])
-    ax.text(240, 120, codes[x_label])
+    ax.text(
+        10, 120, inverse_codes[codes[x_label]], c="white" if plot_empty else "black"
+    )
+    ax.text(240, 120, codes[x_label], c="white" if plot_empty else "black")
 
     ax.text(
         10,
@@ -116,6 +120,7 @@ def plot_brain_slice_2D(
         {"".join(codes)}     
         {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
         """,
+        c="white" if plot_empty else "black",
     ).set_fontsize(10)
 
     # Plot point
@@ -216,7 +221,7 @@ def add_region_plot_to_ax(
         xs.append(pt[x_label])
         ys.append(pt[y_label])
 
-    ax.scatter(xs, ys, s=0.7, c=colors[region_id])
+    ax.scatter(xs, ys, s=0.7, color=colors[region_id])
 
     return ax
 
@@ -246,7 +251,6 @@ def plot_volume_3d(
 ):
     fig = None
     if ax is None:
-        print("restart")
         fig, ax = get_3d_fig_ax()
 
     xs = []
@@ -312,7 +316,7 @@ def orthoview(volume, affine, center_pt=None, **kwargs):
         affine,
         axis=1,
         ax=axs[0, 1],
-        fixed_value=center_pt[0] if center_pt is not None else None,
+        fixed_value=center_pt[1] if center_pt is not None else None,
         **kwargs,
     )
     plot_brain_slice_2D(
@@ -320,7 +324,7 @@ def orthoview(volume, affine, center_pt=None, **kwargs):
         affine,
         axis=2,
         ax=axs[1, 0],
-        fixed_value=center_pt[0] if center_pt is not None else None,
+        fixed_value=center_pt[2] if center_pt is not None else None,
         **kwargs,
     )
     remove_ax(axs[1, 1])
@@ -329,9 +333,7 @@ def orthoview(volume, affine, center_pt=None, **kwargs):
 
 
 def orthoview_region(reg_points, reg_centroid, region_id, volume, affine, **kwargs):
-    fig, axs = orthoview(
-        volume, affine, center_pt=reg_centroid, cmap_name="gray", **kwargs
-    )
+    fig, axs = orthoview(volume, affine, center_pt=reg_centroid, **kwargs)
     colors = get_cmap_colors()
     add_region_plot_to_ax(
         axs[0, 0], reg_points, reg_centroid, region_id, axis=0, colors=colors

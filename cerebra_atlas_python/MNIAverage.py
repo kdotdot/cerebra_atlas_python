@@ -10,7 +10,7 @@ import logging
 class MNIAverage:
     def __init__(
         self,
-        mniAverage_output_path="./generated",
+        mniAverage_output_path="./generated/models",
         subjects_dir=os.getenv("SUBJECTS_DIR"),
         bem_conductivity=(0.33, 0.0042, 0.33),
         bem_ico=4,
@@ -19,9 +19,11 @@ class MNIAverage:
         self.bem = None
         self.fiducials = None
         self.output_path = mniAverage_output_path
-        if not op.exists(mniAverage_output_path):
-            os.mkdir(mniAverage_output_path)
-        self.vol_src_path = op.join(mniAverage_output_path, "MNIAverage-v-src.fif")
+
+        if not op.exists(self.output_path):
+            os.mkdirs(mniAverage_output_path, exist_ok=True)
+
+        self.vol_src_path = op.join(self.output_path, "MNIAverage-v-src.fif")
         self.bem_conductivity_string = "".join(
             [str(x) + "_" for x in bem_conductivity]
         )[:-1]
@@ -30,7 +32,7 @@ class MNIAverage:
         self.subjects_dir = subjects_dir
         self.bem_conductivity = bem_conductivity
         self.bem_path = op.join(
-            mniAverage_output_path,
+            self.output_path,
             f"MNIAverage-bem-{self.bem_conductivity_string}-{self.bem_ico}.fif",
         )
         self._set_bem()
@@ -106,7 +108,7 @@ class MNIAverage:
     def _set_fiducials(self):
         # self.fiducials = mne.coreg.get_mni_fiducials("MNIAverage")
         self.fiducials, _coordinate_frame = mne.io.read_fiducials(
-            "/home/carlos/Datasets/subjects/MNIAverage/bem/MNIAverage-fiducials.fif"
+            f"{self.subjects_dir}/MNIAverage-fiducials.fif"
         )
 
     def index_to_ras(self, idx):
@@ -115,11 +117,8 @@ class MNIAverage:
 
 
 if __name__ == "__main__":
-    mniAverage = MNIAverage(
-        mniAverage_output_path="/home/carlos/Carlos/source-localization/generated",
-        manual_fit_fiducials=True,
-    )
-    mne.viz.plot_bem("MNIAverage")
-    mniAverage.vol_src.plot()
+    mniAverage = MNIAverage()
+    # mne.viz.plot_bem("MNIAverage")
+    # mniAverage.vol_src.plot()
 
-    print(mniAverage)
+    # print(mniAverage)

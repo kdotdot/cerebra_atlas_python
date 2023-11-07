@@ -107,8 +107,8 @@ class CerebrA:
             self.mniAverage = MNIAverage(**MNIAverageKwArgs)
         else:
             assert (
-                type(mniAverage) == "MNIAverage"
-            ), f"Wrong class should be MNIAverage{type(mniAverage)= }"
+                type(mniAverage) == MNIAverage
+            ), f"Wrong class should be MNIAverage {type(mniAverage)= }"
 
             self.mniAverage = mniAverage
 
@@ -201,9 +201,9 @@ class CerebrA:
         fig, axs = orthoview_region(
             reg_points,
             reg_centroid,
-            self.cerebra_volume,
-            self.affine,
-            region_id,
+            volume=self.cerebra_volume,
+            affine=self.affine,
+            region_id=region_id,
             src_space=src,
             **kwargs,
         )
