@@ -7,7 +7,8 @@ import mne
 import matplotlib.pyplot as plt
 import os.path as op
 
-from BaseConfig import BaseConfig
+from cerebra_atlas_python.config import BaseConfig
+from cerebra_atlas_python.mni_average import MNIAverage
 
 from cerebra_atlas_python.utils import (
     download_file_from_google_drive,
@@ -25,7 +26,6 @@ from cerebra_atlas_python.plotting import (
     get_3d_fig_ax,
 )
 
-from cerebra_atlas_python.MNIAverage import MNIAverage
 
 # Download:
 # https://drive.google.com/file/d/13rfrvxVQe18ss2hccPy10DkKQdnNyjWL/view?usp=sharing
@@ -76,9 +76,13 @@ def get_label_details():
 class CerebrA(BaseConfig):
     def __init__(
         self,
+        mni_average=None,
         MNIAverageKwArgs=None,
         **kwargs,
     ):
+        MNIAverageKwArgs = MNIAverageKwArgs or {}
+        self.cerebra_output_path: str = None
+        self.download_data: bool = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
             "download_data": True,
@@ -93,7 +97,9 @@ class CerebrA(BaseConfig):
             os.makedirs(self.cerebra_output_path, exist_ok=True)
 
         # Define paths for required data
-        label_details_path = f"{self.cerebra_output_path}/CerebrA_LabelDetails.csv"
+        label_details_path = op.join(
+            self.cerebra_output_path, "CerebrA_LabelDetails.csv"
+        )
 
         # TODO: move to GDrive
         cerebra_in_head_path = (
@@ -105,14 +111,14 @@ class CerebrA(BaseConfig):
 
         # Download data if it is not present within download folder
         # TODO: Download data
-        # if download_data and not os.path.exists(cerebra_in_head_path):
-        #     logging.info("Downloading CerebrA volume...")
-        #     file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
-        #     download_file_from_google_drive(file_id, cerebra_in_head_path)
-        # if download_data and not os.path.exists(label_details_path):
-        #     logging.info("Downloading CerebrA labels...")
-        #     file_id = "1RoOfEiqglZ6wM2gU6Qae48uc3j8DXv5d"
-        #     download_file_from_google_drive(file_id, label_details_path)
+        if self.download_data and not os.path.exists(cerebra_in_head_path):
+            logging.info("Downloading CerebrA volume...")
+            file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
+            download_file_from_google_drive(file_id, cerebra_in_head_path)
+        if self.download_data and not os.path.exists(label_details_path):
+            logging.info("Downloading CerebrA labels...")
+            file_id = "1RoOfEiqglZ6wM2gU6Qae48uc3j8DXv5d"
+            download_file_from_google_drive(file_id, label_details_path)
 
         # Read data
         self.label_details = preprocess_label_details(pd.read_csv(label_details_path))
@@ -126,14 +132,14 @@ class CerebrA(BaseConfig):
         # self.brain_volume = move_volume_from_LIA_to_RAS(
         #     np.array(brain_img.dataobj)
         # )  # Affine is shared with cerebra in head
-        if mniAverage is None:
-            self.mniAverage = MNIAverage(**MNIAverageKwArgs)
+        if mni_average is None:
+            self.mni_average = MNIAverage(**MNIAverageKwArgs)
         else:
-            assert (
-                type(mniAverage) == MNIAverage
-            ), f"Wrong class should be MNIAverage {type(mniAverage)= }"
+            assert isinstance(
+                mni_average, MNIAverage
+            ), f"Wrong class should be MNIAverage {type(mni_average)= }"
 
-            self.mniAverage = mniAverage
+            self.mni_average = mni_average
 
         wm_img = nib.load(wm_path)  # LIA coordinate frame
         self.wm_volume = move_volume_from_LIA_to_RAS(
@@ -167,14 +173,36 @@ class CerebrA(BaseConfig):
         #     for region_id in self.region_ids
         # }
 
+    def center_ras_volume(self, pts: np.ndarray) -> np.ndarray:
+        #  RAS (non-zero origin) -> RAS
+        return mne.transforms.apply_trans(self.affine, pts) * 1000
+
     def get_bem_surfaces(self):
         if self.bem_surfaces is None:
-            self.bem_surfaces = self.mniAverage.get_bem_surfaces(transform=self.affine)
+            self.bem_surfaces = self.mni_average.get_bem_surfaces_voxel_ras(
+                transform=self.affine
+            )
         return self.bem_surfaces
 
     def get_src_volume(self):
         if self.src_volume is None:
-            self.src_volume = self.mniAverage.get_src_volume(transform=self.affine)
+            src_space_ras_nzo = self.mni_average.get_src_space_ras_nzo(
+                transform=self.affine
+            )
+            src_space_ras = self.center_ras_volume(
+                src_space_ras_nzo
+            )  # Points in RAS coord frame
+            # return src_volume
+            src_volume = np.zeros((256, 256, 256)).astype(int)
+
+            for i, pt in enumerate(src_space_ras):
+                x, y, z = pt
+                if i in self.mni_average.src["vertno"]:
+                    src_volume[x, y, z] = 1  # Usable source space
+                else:
+                    src_volume[x, y, z] = 2  # Box around source space
+            # TODO: [important] WHY WORK WITH VOXELS INSTEAD OF POINTS DIRECTLY
+            self.src_volume = src_space_ras
         return self.src_volume
 
     def orthoview(
@@ -216,7 +244,7 @@ class CerebrA(BaseConfig):
     def plot_region_orthoview(self, region_id, plot_src_space=False, **kwargs):
         src = None
         if plot_src_space:
-            src = self.mniAverage.get_src_volume(transform=cerebra.affine)
+            src = self.mni_average.get_src_volume(transform=cerebra.affine)
         reg_name = self.get_region_name_from_region_id(region_id)
         reg_points = self.get_points_from_region_id(region_id)
         reg_centroid = self.find_region_centroid_from_name(reg_name)

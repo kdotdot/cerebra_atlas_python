@@ -1,39 +1,50 @@
+"""
+This module provides a class for configuring class attributes dinamically
+"""
+
 import logging
 from abc import ABC, abstractmethod
-from cerebra_atlas_python.utils import read_config_as_dict
+from typing import Optional, Any, Dict
 
-# 4 options:
-# [1]: Call MNIAverage without parameters & config file exists
-# mniAverage = MNIAverage() -> Use config
-# [2]: Call MNIAverage without parameters & config file does not exist
-# mniAverage = MNIAverage() -> Use MNIAverage default config
-# [3]: Call MNIAverage with parameters & config file exists
-# mniAverage = MNIAverage(bem_ico=3) -> Use first parameters, then config
-# [4]: Call MNIAverage with parameters & config file does not exist
-# mniAverage = MNIAverage(bem_ico=3) -> Use first parameters, then MNIAverage default config
+from cerebra_atlas_python.utils import read_config_as_dict
 
 
 class BaseConfig(ABC):  # Abstract class
+    """
+    An abstract base class for configuration management in Python applications.
+
+    This class serves as a foundation for creating configuration management systems,
+    allowing configurations to be read from a file, using default values when necessary,
+    and supporting runtime parameter overrides.
+
+    Attributes:
+        name (str): The name of the parent class utilizing this configuration.
+    """
+
     @abstractmethod
     def __init__(
-        self, parent_name: str, default_config: (dict or None) = None, **kwargs
+        self,
+        parent_name: str,
+        default_config: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ):
         """
-        Purpose:
-        BaseConfig serves as an abstract base class for configuration management. It is designed to:
+        Constructs a BaseConfig object with specified parameters and default settings.
 
-        1. Read configuration settings from a file.
-        2. Override these settings with default values if the file is not available or lacks certain settings.
-        3. Allow further customization through runtime parameters.
-
-        Usage:
-        This class is intended to be subclassed by other classes that require configurable settings.
-        The subclass should provide its own parent_name and default_config as appropriate.
+        Reads configuration from a file specific to the 'parent_name' class. If the file is
+        not found or is incomplete, it falls back to the provided default configuration.
+        Additional runtime parameters can override both file-based and default configurations.
 
         Args:
-            parent_name (str): Name of the parent class
-            default_config (dict or None, optional):  Default configuration values. Used if the configuration file is missing or incomplete. Defaults to None.
-            **kwargs: Additional keyword arguments to override both the configuration file and default values.
+            parent_name (str): The name of the parent class for which the configuration is managed.
+            default_config (Optional[Dict[str, Any]]): A dictionary of default configuration values.
+                                                      Used if the configuration file is missing or incomplete.
+                                                      Defaults to None.
+            **kwargs: Additional keyword arguments representing runtime configuration overrides.
+
+        Note:
+            The configuration values are set as instance attributes, making them directly accessible
+            as properties of the class instance.
         """
         default_config = default_config or {}
 
@@ -46,14 +57,18 @@ class BaseConfig(ABC):  # Abstract class
             config = default_config
             if not config:
                 logging.warning(
-                    f"Config and default values were not provided for class {parent_name}"
+                    "Config and default values were not provided for class %s",
+                    parent_name,
                 )
-
         # Update missing keys in the config with default values
         for key, value in default_config.items():
             if key not in config:
-                logging.warning(
-                    f"Value for variable {key} not provided in {parent_name}. Defaulting to {key}={value}"
+                logging.debug(
+                    "Value for variable %s not provided in config.ini[%s]. Defaulting to %s=%s",
+                    key,
+                    parent_name,
+                    key,
+                    value,
                 )
             config.setdefault(key, value)
 
@@ -65,7 +80,7 @@ class BaseConfig(ABC):  # Abstract class
             try:
                 # Attempt to evaluate the value if it's a string that represents a Python literal
                 parsed_value = eval(value)
-            except:
+            except (SyntaxError, TypeError):  # String / Boolean throw error at eval()
                 # Retain the original string value if eval fails
                 parsed_value = value
             setattr(self, key, parsed_value)
