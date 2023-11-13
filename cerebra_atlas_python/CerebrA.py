@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 import mne
 import matplotlib.pyplot as plt
+import os.path as op
+
+from BaseConfig import BaseConfig
 
 from cerebra_atlas_python.utils import (
     download_file_from_google_drive,
@@ -53,20 +56,44 @@ def preprocess_label_details(df):
     return df
 
 
-class CerebrA:
+# TODO: Make it so that download_data works...
+# Download / process data
+# DOWNLOAD:
+# MNIAverage: subjects/MNIAverage
+# CerebrA: CerebrA_LabelDetails.csv
+# CerebrA: CerebrA_in_head.mgz
+# CerebrA: T1.mgz
+# CerebrA: wm.asegedit.mgz
+
+
+def get_label_details():
+    return
+
+
+# get_volumes
+
+
+class CerebrA(BaseConfig):
     def __init__(
         self,
-        download_dir="./data",
-        download_data=True,
-        mniAverage=None,
-        MNIAverageKwArgs={
-            "mniAverage_output_path": "/home/carlos/Carlos/source-localization/generated"
-        },
-        # **kwargs,
+        MNIAverageKwArgs=None,
+        **kwargs,
     ):
+        default_config = {
+            "cerebra_output_path": "./generated/cerebra",
+            "download_data": True,
+        }
+
+        super().__init__(
+            parent_name=self.__class__.__name__, default_config=default_config
+        )
+
+        # If output folder does not exist, create it
+        if not op.exists(self.cerebra_output_path):
+            os.makedirs(self.cerebra_output_path, exist_ok=True)
+
         # Define paths for required data
-        # cerebra_in_head_path = f"{download_dir}/CerebrA_in_head.mgz"
-        label_details_path = f"{download_dir}/CerebrA_LabelDetails.csv"
+        label_details_path = f"{self.cerebra_output_path}/CerebrA_LabelDetails.csv"
 
         # TODO: move to GDrive
         cerebra_in_head_path = (
@@ -76,20 +103,16 @@ class CerebrA:
         # brain_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/brain.mgz"  # TODO: use wm.mgz
         wm_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/wm.asegedit.mgz"
 
-        # Create download folder if it does not exist
-        if not os.path.exists(download_dir):
-            os.makedirs(download_dir)
-
         # Download data if it is not present within download folder
-        # TODO: Modify volumes first and then make users download volume and labels only
-        if download_data and not os.path.exists(cerebra_in_head_path):
-            logging.info("Downloading CerebrA volume...")
-            file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
-            download_file_from_google_drive(file_id, cerebra_in_head_path)
-        if download_data and not os.path.exists(label_details_path):
-            logging.info("Downloading CerebrA labels...")
-            file_id = "1RoOfEiqglZ6wM2gU6Qae48uc3j8DXv5d"
-            download_file_from_google_drive(file_id, label_details_path)
+        # TODO: Download data
+        # if download_data and not os.path.exists(cerebra_in_head_path):
+        #     logging.info("Downloading CerebrA volume...")
+        #     file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
+        #     download_file_from_google_drive(file_id, cerebra_in_head_path)
+        # if download_data and not os.path.exists(label_details_path):
+        #     logging.info("Downloading CerebrA labels...")
+        #     file_id = "1RoOfEiqglZ6wM2gU6Qae48uc3j8DXv5d"
+        #     download_file_from_google_drive(file_id, label_details_path)
 
         # Read data
         self.label_details = preprocess_label_details(pd.read_csv(label_details_path))

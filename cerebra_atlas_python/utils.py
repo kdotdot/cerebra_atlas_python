@@ -4,6 +4,9 @@ import time
 import numpy as np
 import mne
 import matplotlib.pyplot as plt
+from configparser import ConfigParser
+import os
+import os.path as op
 
 
 def time_func_decorator(func):
@@ -208,7 +211,82 @@ def find_closest_point(points, target_point):
     return points[closest_point_index], distances[closest_point_index]
 
 
+def read_config_as_dict(
+    file_path: str = op.dirname(__file__) + "/config.ini", section: str = None
+) -> (dict, bool):
+    # Initialize an empty dictionary to store the configuration
+    config_dict = {}
+    # Variable to indicate healthy config dict
+    success = True
+    # Check whether config file exists
+    if not op.exists(file_path):
+        logging.warning(f"Config file does not exist {file_path}")
+        success = False
+        return config_dict, success
+
+    # Initialize the ConfigParser
+    config = ConfigParser()
+
+    # Add environment variables to the ConfigParser default values
+    config.read_dict({"DEFAULT": os.environ})
+
+    # Read the file
+    config.read(file_path)
+
+    # Get all sections (without env vars)
+    if section is None:
+        # Iterate over the sections and keys to populate the dictionary
+        for section in config.sections():
+            config_dict[section] = {}
+            for key in config[section]:
+                # Skip environment variable entries
+                if key.upper() not in os.environ:
+                    config_dict[section][key] = config[section][key]
+
+        if len(config_dict) == 0:
+            logging.warning(f"Attempted to read empty config file {file_path}")
+            success = False
+
+    # Get a single section
+    else:
+        if section not in config.sections():
+            logging.warning(f"{section} does not exist for config file {file_path}")
+            success = False
+        else:
+            config_dict[section] = {}
+            for key in config[section]:
+                # Skip environment variable entries
+                if key.upper() not in os.environ:
+                    config_dict[section][key] = config[section][key]
+
+            config_dict = config_dict[section]
+
+    return config_dict, success
+
+
+def read_config_from_file(file_path: str):
+    print(file_path)
+    file_name = file.split("/")[-1][:-2]
+    print(file_path, file_name)
+    return read_config_as_dict(section=file_name)
+
+
+def create_default_object(class_name):
+    pass
+
+def get_volume_ras()
+
 if __name__ == "__main__":
-    file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
-    destination = "./cer.mgz"
-    download_file_from_google_drive(file_id, destination)
+    from pprint import pprint
+
+    # file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
+    # destination = "./cer.mgz"
+    # download_file_from_google_drive(file_id, destination)
+    # path = "./config.ini"
+    config = read_config_as_dict()
+    # # my_config_parser_dict = {s: dict(config.items(s)) for s in config.sections()}
+    pprint(config)
+
+    config = read_config_as_dict(section="MNIAverage")
+    # pprint(config)
+    pprint(config)

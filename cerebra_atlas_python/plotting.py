@@ -153,6 +153,7 @@ def plot_brain_slice_2D(
             colors="orange",
         )
 
+    # TODO: Comprobar que pt y src_space funciona bien
     if src_space is not None:
         xs = []
         ys = []
