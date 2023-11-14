@@ -6,6 +6,7 @@ import pandas as pd
 import mne
 import matplotlib.pyplot as plt
 import os.path as op
+import pickle
 
 from cerebra_atlas_python.config import BaseConfig
 from cerebra_atlas_python.mni_average import MNIAverage
@@ -16,6 +17,7 @@ from cerebra_atlas_python.utils import (
     move_volume_from_LIA_to_RAS,
     expand_volume,
     find_closest_point,
+    time_func_decorator,
 )
 from cerebra_atlas_python.plotting import (
     plot_brain_slice_2D,
@@ -53,24 +55,31 @@ def preprocess_label_details(df):
     df.loc["52":, "Label Name"] = "Left " + df.loc["52":, "Label Name"]
     df.loc[:"52", "Label Name"] = "Right " + df.loc[:"52", "Label Name"]
 
+    # Add white matter to label details
+    df.loc[len(df.index)] = [0, "White matter", 103]
+
     return df
 
 
-# TODO: Make it so that download_data works...
-# Download / process data
-# DOWNLOAD:
-# MNIAverage: subjects/MNIAverage
-# CerebrA: CerebrA_LabelDetails.csv
-# CerebrA: CerebrA_in_head.mgz
-# CerebrA: T1.mgz
-# CerebrA: wm.asegedit.mgz
+def get_label_details(path):
+    return preprocess_label_details(pd.read_csv(path))
 
 
-def get_label_details():
-    return
+def get_volume_RAS(path, dtype=np.uint8):
+    img = nib.load(path)  # All volumes are in LIA coordinate frame
+    volume, affine = move_volume_from_LIA_to_RAS(
+        np.array(img.dataobj, dtype=dtype), img.affine
+    )
+    return volume, affine
 
 
-# get_volumes
+def get_cerebra_volume(cerebra_mgz, wm_mgz):
+    cerebra_volume, cerebra_affine = get_volume_RAS(cerebra_mgz)
+    wm_volume, _ = get_volume_RAS(wm_mgz)
+
+    # Add whitematter to volume data
+    cerebra_volume[(wm_volume != 0) & (cerebra_volume == 0)] = 103
+    return cerebra_volume, cerebra_affine
 
 
 class CerebrA(BaseConfig):
@@ -80,59 +89,25 @@ class CerebrA(BaseConfig):
         MNIAverageKwArgs=None,
         **kwargs,
     ):
-        MNIAverageKwArgs = MNIAverageKwArgs or {}
         self.cerebra_output_path: str = None
-        self.download_data: bool = None
+        self.default_data_path: str = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
-            "download_data": True,
+            "default_data_path": "../cerebra_data/cerebra",
         }
 
         super().__init__(
-            parent_name=self.__class__.__name__, default_config=default_config
+            parent_name=self.__class__.__name__,
+            default_config=default_config,
+            **kwargs,
         )
 
-        # If output folder does not exist, create it
-        if not op.exists(self.cerebra_output_path):
-            os.makedirs(self.cerebra_output_path, exist_ok=True)
+        self.bem_surfaces = None
+        self.src_volume = None
 
-        # Define paths for required data
-        label_details_path = op.join(
-            self.cerebra_output_path, "CerebrA_LabelDetails.csv"
-        )
-
-        # TODO: move to GDrive
-        cerebra_in_head_path = (
-            "/home/carlos/Datasets/Cerebra/10.12751_g-node.be5e62/CerebrA_in_head.mgz"
-        )
-        t1_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/T1.mgz"
-        # brain_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/brain.mgz"  # TODO: use wm.mgz
-        wm_path = "/home/carlos/Datasets/subjects/MNIAverage/mri/wm.asegedit.mgz"
-
-        # Download data if it is not present within download folder
-        # TODO: Download data
-        if self.download_data and not os.path.exists(cerebra_in_head_path):
-            logging.info("Downloading CerebrA volume...")
-            file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
-            download_file_from_google_drive(file_id, cerebra_in_head_path)
-        if self.download_data and not os.path.exists(label_details_path):
-            logging.info("Downloading CerebrA labels...")
-            file_id = "1RoOfEiqglZ6wM2gU6Qae48uc3j8DXv5d"
-            download_file_from_google_drive(file_id, label_details_path)
-
-        # Read data
-        self.label_details = preprocess_label_details(pd.read_csv(label_details_path))
-
-        cerebra_in_head_img = nib.load(cerebra_in_head_path)  # LIA coordinate frame
-        self.cerebra_volume, self.affine = move_volume_from_LIA_to_RAS(
-            np.array(cerebra_in_head_img.dataobj), cerebra_in_head_img.affine
-        )
-
-        # brain_img = nib.load(brain_path)  # LIA coordinate frame
-        # self.brain_volume = move_volume_from_LIA_to_RAS(
-        #     np.array(brain_img.dataobj)
-        # )  # Affine is shared with cerebra in head
+        # Instantiate/ assign MNIAverage object
         if mni_average is None:
+            MNIAverageKwArgs = MNIAverageKwArgs or {}
             self.mni_average = MNIAverage(**MNIAverageKwArgs)
         else:
             assert isinstance(
@@ -141,48 +116,64 @@ class CerebrA(BaseConfig):
 
             self.mni_average = mni_average
 
-        wm_img = nib.load(wm_path)  # LIA coordinate frame
-        self.wm_volume = move_volume_from_LIA_to_RAS(
-            np.array(wm_img.dataobj)
-        )  # Affine is shared with cerebra in head
-        self.wm_volume[self.wm_volume != 0] = 103
+        # If output folder does not exist, create it
+        if not op.exists(self.cerebra_output_path):
+            os.makedirs(self.cerebra_output_path, exist_ok=True)
 
-        t1_img = nib.load(t1_path)  # LIA coordinate frame
-        self.t1_volume = move_volume_from_LIA_to_RAS(np.array(t1_img.dataobj))
+        # Define volumes' path
+        self.cerebra_path = cerebra_path = op.join(
+            self.default_data_path, "CerebrA_in_head.mgz"
+        )
+        # t1_path = op.join(self.mni_average.fs_subjects_dir, "MNIAverage/mri/T1.mgz")
+        wm_path = op.join(
+            self.mni_average.fs_subjects_dir, "MNIAverage/mri/wm.asegedit.mgz"
+        )
 
-        # expand_volume(self.wm_volume, perimeter=4)
-        # cerebra_volume_exp = expand_volume(self.cerebra_volume.copy(), perimeter=10)
+        # Set volume
+        self.cerebra_volume, self.affine = get_cerebra_volume(cerebra_path, wm_path)
 
-        # self.brain_mask = np.zeros((256, 256, 256)).astype(int)
-        # self.brain_mask[mask_pts[0], mask_pts[1], mask_pts[2]] = 103
-
-        # Add whitematter to volume data
-        self.cerebra_volume[(self.wm_volume != 0) & (self.cerebra_volume == 0)] = 103
-        # Add white matter to label details
-        self.label_details.loc[len(self.label_details.index)] = [0, "White matter", 103]
-        self.region_points_cache = {}
+        # Read labels
+        label_details_path = op.join(self.default_data_path, "CerebrA_LabelDetails.csv")
+        self.label_details = get_label_details(label_details_path)
 
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
 
-        self.bem_surfaces = None
-        self.src_volume = None
-        # TODO: Look into sparse representations
-        # self.volume_data_sparse = {
-        #     region_id: self.get_points_from_region_id(region_id)
-        #     for region_id in self.region_ids
-        # }
+        # Sparse representation
+        cerebra_sparse_path = op.join(self.cerebra_output_path, "CerebrA_sparse.npy")
+        if not op.exists(cerebra_sparse_path):
+            logging.info("Generating sparse representation of Cerebra volume data...")
+            self.volume_data_sparse = {
+                region_id: self.get_points_from_region_id(region_id)
+                for region_id in self.region_ids
+            }
+            with open(cerebra_sparse_path, "wb") as handle:
+                pickle.dump(
+                    self.volume_data_sparse, handle, protocol=pickle.HIGHEST_PROTOCOL
+                )
+        else:
+            with open(cerebra_sparse_path, "rb") as handle:
+                self.volume_data_sparse = pickle.load(handle)
 
-    def center_ras_volume(self, pts: np.ndarray) -> np.ndarray:
+    # COORDINATE FRAME TRANSFORMATIONS
+    def center_ras(self, pts: np.ndarray) -> np.ndarray:
         #  RAS (non-zero origin) -> RAS
         return mne.transforms.apply_trans(self.affine, pts) * 1000
+
+    # def voxel_to_ras(self, pt):
+    #     return mne.transforms.apply_trans(self.affine, pt).astype(int)
+
+    def ras_to_voxel(self, pt):
+        return np.round(
+            mne.transforms.apply_trans(np.linalg.inv(self.affine), pt)
+        )  # NOTE: removed .astype(int)
 
     def get_bem_surfaces(self):
         if self.bem_surfaces is None:
             self.bem_surfaces = self.mni_average.get_bem_surfaces_voxel_ras(
                 transform=self.affine
             )
-        return self.bem_surfaces
+        return self.bem_surfaces  # RAS coordinate frame
 
     def get_src_volume(self):
         if self.src_volume is None:
@@ -203,8 +194,9 @@ class CerebrA(BaseConfig):
                     src_volume[x, y, z] = 2  # Box around source space
             # TODO: [important] WHY WORK WITH VOXELS INSTEAD OF POINTS DIRECTLY
             self.src_volume = src_space_ras
-        return self.src_volume
+        return self.src_volume  # voxel RAS coordinate frame
 
+    @time_func_decorator
     def orthoview(
         self,
         plot_src_space=False,
@@ -244,7 +236,7 @@ class CerebrA(BaseConfig):
     def plot_region_orthoview(self, region_id, plot_src_space=False, **kwargs):
         src = None
         if plot_src_space:
-            src = self.mni_average.get_src_volume(transform=cerebra.affine)
+            src = self.mni_average.get_src_volume(transform=self.affine)
         reg_name = self.get_region_name_from_region_id(region_id)
         reg_points = self.get_points_from_region_id(region_id)
         reg_centroid = self.find_region_centroid_from_name(reg_name)
@@ -306,11 +298,7 @@ class CerebrA(BaseConfig):
     # Helper function for get_points_from_region_name
     # Does the same but with region id instead of region name
     def get_points_from_region_id(self, region_id):
-        if region_id not in self.region_points_cache.keys():
-            self.region_points_cache[region_id] = np.array(
-                np.where(self.cerebra_volume == region_id)
-            ).T
-        return self.region_points_cache[region_id]
+        return self.volume_data_sparse[region_id]
 
     def get_region_name_from_region_id(self, region_id):
         if region_id == 0:
@@ -362,14 +350,6 @@ class CerebrA(BaseConfig):
             f"get_closest_region_to_whitematter unable to find close region {n_max= }"
         )
         return success, pt, region_id
-
-    def voxel_to_ras(self, pt):
-        return mne.transforms.apply_trans(self.affine, pt).astype(int)
-
-    def ras_to_voxel(self, pt):
-        return np.round(
-            mne.transforms.apply_trans(np.linalg.inv(self.affine), pt)
-        )  # NOTE: removed .astype(int)
 
     def find_region_centroid_from_name(self, region_name):
         region_data = self.label_details[

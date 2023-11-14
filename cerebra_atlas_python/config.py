@@ -1,12 +1,84 @@
 """
 This module provides a class for configuring class attributes dinamically
 """
-
+import os
+import os.path as op
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict
+from typing import Tuple, Dict, Optional, Any
+from configparser import ConfigParser, InterpolationMissingOptionError
 
-from cerebra_atlas_python.utils import read_config_as_dict
+
+def read_config_as_dict(
+    file_path: str = op.dirname(__file__) + "/config.ini", section: Optional[str] = None
+) -> Tuple[Dict[str, str], bool]:
+    """
+    Reads a configuration file and returns its contents as a dictionary.
+
+    This function reads the specified configuration file and parses its contents.
+    If a specific section is requested, only that section is returned. Otherwise,
+    all sections are returned. Additionally, environment variables are used as
+    default values.
+
+    Args:
+        file_path (str): Path to the configuration file. Defaults to 'config.ini' in the current directory.
+        section (Optional[str]): Specific section to read from the configuration file.
+                                    If None, all sections are read. Defaults to None.
+
+    Returns:
+        Tuple[Dict[str, Dict[str, str]], bool]: A tuple containing a dictionary of configuration values
+                                                and a boolean indicating the success of reading the file.
+                                                The dictionary is structured with sections as keys and
+                                                dictionaries of the section's key-value pairs as values.
+    """
+
+    # ALLOW MISSING ENV VARIABLES (env variables which are empty throw InterpolationMissingOptionError)
+    def attempt_get_value(parser: ConfigParser, section: str, key: str) -> str:
+        try:
+            return parser[section][key]
+        except InterpolationMissingOptionError:
+            return ""
+
+    config_dict: Dict[str, Dict[str, Any]] = {}
+    success: bool = True
+
+    if not op.exists(file_path):
+        logging.warning("Config file does not exist: %s", file_path)
+        success = False
+        return config_dict, success
+
+    config_parser = ConfigParser()
+    config_parser.read_dict({"DEFAULT": os.environ})
+    config_parser.read(file_path)
+
+    if section is None:
+        for section in config_parser.sections():
+            config_dict[section] = {}
+            for key in config_parser[section]:
+                if key.upper() not in os.environ:
+                    config_dict[section][key] = attempt_get_value(
+                        config_parser, section, key
+                    )
+
+        if not config_dict:
+            logging.warning("Attempted to read empty config file: %s", file_path)
+            success = False
+    else:
+        if section not in config_parser.sections():
+            logging.warning(
+                "Section '{section}' does not exist in config file: %s", file_path
+            )
+            success = False
+        else:
+            config_dict[section] = {}
+            for key in config_parser[section]:
+                if key.upper() not in os.environ:
+                    config_dict[section][key] = attempt_get_value(
+                        config_parser, section, key
+                    )
+            config_dict = config_dict[section]
+
+    return config_dict, success
 
 
 class BaseConfig(ABC):  # Abstract class

@@ -50,13 +50,13 @@ class MNIAverage(BaseConfig):
         self.fs_subjects_dir: str = None
         self.bem_conductivity: Tuple[float, float, float] = None
         self.bem_ico: int = None
-        self.cerebra_data_path: str = None
+        self.default_data_path: str = None
         default_config = {
             "mniaverage_output_path": "./generated/models",
             "fs_subjects_dir": os.getenv("SUBJECTS_DIR"),
             "bem_conductivity": (0.33, 0.0042, 0.33),
             "bem_ico": 4,
-            "cerebra_data_path": "../cerebra_data",
+            "default_data_path": "../cerebra_data",
         }
 
         super().__init__(
@@ -76,10 +76,10 @@ class MNIAverage(BaseConfig):
             logging.info(
                 "Freesurfer subjects folder not found, using default data path"
             )
-            self.fs_subjects_dir = self.cerebra_data_path
+            self.fs_subjects_dir = self.default_data_path
         elif "MNIAverage" not in os.listdir(self.fs_subjects_dir):
             logging.info("MNIAverage subject data not found, using default data path")
-            self.fs_subjects_dir = self.cerebra_data_path
+            self.fs_subjects_dir = self.default_data_path
 
         else:
             logging.info("Using data from SUBJECTS_DIR/MNIAverage")
@@ -158,7 +158,7 @@ class MNIAverage(BaseConfig):
             self.vol_src.save(self._vol_src_path, overwrite=True, verbose=True)
         else:
             logging.info("Reading volume source space from disk")
-            self.vol_src = mne.read_source_spaces(self._vol_src_path)
+            self.vol_src = mne.read_source_spaces(self._vol_src_path, verbose=False)
 
     # Same for BEM
     def _set_bem(self):
@@ -185,7 +185,7 @@ class MNIAverage(BaseConfig):
             )
         else:
             logging.info("Loading boundary element model from disk | %s", self.name)
-            self.bem = mne.read_bem_solution(self._bem_path)
+            self.bem = mne.read_bem_solution(self._bem_path, verbose=False)
 
     # Read manually aligned fiducials
     def _set_fiducials(self):

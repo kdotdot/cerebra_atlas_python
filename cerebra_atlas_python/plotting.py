@@ -24,14 +24,13 @@ def plot_brain_slice_2D(
     affine,
     axis=0,
     fixed_value=None,
-    n_classes=103,
-    plot_regions=False,
+    plot_regions=True,
     plot_whitematter=False,
-    plot_empty=True,
+    plot_empty=False,
     src_space=None,
     bem_surfaces=None,
     pt_dist=None,
-    cmap_name="hsv",
+    cmap_name="default",
     s=0.3,
     ax=None,
     pt=None,
@@ -67,9 +66,13 @@ def plot_brain_slice_2D(
     ys = []
     cs = []
 
-    colors = get_cmap_colors()
+    if cmap_name != "default" or volume_data.max() > 103:
+        cmap_name = "gray" if cmap_name == "default" else cmap_name
+        colors = get_cmap_colors(cmap_name, volume_data.max())
+    else:
+        colors = get_cmap_colors()
 
-    for i in range(1):  # NOTE: Layering (off)
+    for i in range(3):  # NOTE: Layering (off)
         for x in range(0, 256, 1):
             for y in range(0, 256, 1):
                 if axis == 0:
@@ -191,9 +194,10 @@ def plot_brain_slice_2D(
     return ax
 
 
-def get_cmap_colors():
-    cmap = matplotlib.colormaps["gist_rainbow"]
-    colors = cmap(np.linspace(0, 1, 104))
+def get_cmap_colors(cmap_name="gist_rainbow", n_classes=103):
+    n_colors = int(n_classes) + 1
+    cmap = matplotlib.colormaps[cmap_name]
+    colors = cmap(np.linspace(0, 1, n_colors))
     white = np.array([1, 0.87, 0.87, 1])
     colors[-1] = white
     black = np.array([0, 0, 0, 1])
@@ -301,8 +305,9 @@ def remove_ax(ax):
     ax.spines["left"].set_visible(False)
 
 
-def orthoview(volume, affine, center_pt=None, **kwargs):
-    fig, axs = plt.subplots(2, 2, figsize=(12, 12))
+def orthoview(volume, affine, center_pt=None, axs=None, fig=None, **kwargs):
+    if axs is None:
+        fig, axs = plt.subplots(2, 2, figsize=(12, 12))
 
     plot_brain_slice_2D(
         volume,
