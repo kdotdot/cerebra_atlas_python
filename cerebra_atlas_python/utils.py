@@ -9,6 +9,8 @@ import numpy as np
 import mne
 import matplotlib.pyplot as plt
 
+from typing import Optional, List, Tuple
+
 
 def time_func_decorator(func):
     def wrapper_function(*args, **kwargs):
@@ -225,17 +227,34 @@ def get_volume_ras():
     pass
 
 
+def slice_volume(volume, fixed_value, axis=0, n_layers=1):
+    start_slice = fixed_value
+    end_slice = fixed_value + n_layers
+    increment = 1
+    logging.debug(
+        "start_slice=%s  end_slice=%s  increment=%s ", start_slice, end_slice, increment
+    )
+    slice_idx = slice(start_slice, end_slice, increment)
+    if axis == 0:
+        volume_slice = volume[slice_idx, :, :]
+    if axis == 1:
+        volume_slice = volume[:, slice_idx, :]
+    if axis == 2:
+        volume_slice = volume[:, :, slice_idx]
+    # volume_slice = np.flip(volume_slice, axis=axis)
+    return volume_slice
+
+
 if __name__ == "__main__":
-    from pprint import pprint
+    pass
 
     # file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
     # destination = "./cer.mgz"
     # download_file_from_google_drive(file_id, destination)
     # path = "./config.ini"
-    config = read_config_as_dict()
+    # config = read_config_as_dict()
     # # my_config_parser_dict = {s: dict(config.items(s)) for s in config.sections()}
-    pprint(config)
-
-    config = read_config_as_dict(section="MNIAverage")
     # pprint(config)
-    pprint(config)
+
+    # config = read_config_as_dict(section="MNIAverage")
+    # pprint(config)

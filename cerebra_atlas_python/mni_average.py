@@ -53,7 +53,7 @@ class MNIAverage(BaseConfig):
         self.default_data_path: str = None
         default_config = {
             "mniaverage_output_path": "./generated/models",
-            "fs_subjects_dir": os.getenv("SUBJECTS_DIR"),
+            "fs_subjects_dir": os.getenv("SUBJECTaS_DIR"),
             "bem_conductivity": (0.33, 0.0042, 0.33),
             "bem_ico": 4,
             "default_data_path": "../cerebra_data",
@@ -93,6 +93,9 @@ class MNIAverage(BaseConfig):
             self.mniaverage_output_path,
             f"{self.name}.fif",
         )
+
+        # Mapping for making sure bem indices refer to the same surface every time
+        self.bem_names = {1: "outer_skin", 2: "outer_skull", 3: "inner_skull"}
 
         self._set_bem()
         self._set_vol_src()
@@ -152,6 +155,8 @@ class MNIAverage(BaseConfig):
                 self.fs_subjects_dir, "MNIAverage", "bem", "inner_skull.surf"
             )
             self.vol_src = mne.setup_volume_source_space(
+                subject="MNIAverage",
+                subjects_dir=self.fs_subjects_dir,
                 surface=surface,
                 add_interpolator=False,  # Just for speed!
             )
@@ -249,6 +254,10 @@ class MNIAverage(BaseConfig):
         if transform is not None:
             src_space = mne.transforms.apply_trans(transform, src_space)
 
+        # Whole src_space is a grid
+        # Pick the actual points that conform the source space
+        src_space = src_space[self.src["vertno"], :]
+
         return src_space
 
     def get_bem_surfaces_ras_nzo(
@@ -265,6 +274,7 @@ class MNIAverage(BaseConfig):
         """
         surfaces = []
         for surf in self.bem["surfs"]:
+            surf = surf["rr"]
             bem_surface = self.mri_to_ras_nzo(
                 surf
             )  # Move volume from MRI space to RAS (non-zero origin)
