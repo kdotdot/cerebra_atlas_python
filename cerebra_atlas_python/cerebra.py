@@ -14,13 +14,10 @@ from cerebra_atlas_python.config import BaseConfig
 from cerebra_atlas_python.mni_average import MNIAverage
 from cerebra_atlas_python.utils import (
     setup_logging,
-    move_volume_from_LIA_to_RAS,
+    move_volume_from_lia_to_ras,
     find_closest_point,
 )
-from cerebra_atlas_python.plotting import (
-    plot_volume_3d,
-    orthoview,
-)
+from cerebra_atlas_python.plotting import plot_volume_3d, orthoview, plot_brain_slice_2d
 
 
 def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
@@ -48,11 +45,11 @@ def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
     df.reset_index(inplace=True, drop=True)
 
     # Modify left side labels
-    df.loc["52":, "CerebrA ID"] = df.loc["52":, "CerebrA ID"] + 51
+    df.loc["51":, "CerebrA ID"] = df.loc["52":, "CerebrA ID"] + 51
 
     # Modify names to include hemisphere
-    df.loc["52":, "Label Name"] = "Left " + df.loc["52":, "Label Name"]
-    df.loc[:"52", "Label Name"] = "Right " + df.loc[:"52", "Label Name"]
+    df.loc["51":, "Label Name"] = "Left " + df.loc["52":, "Label Name"]
+    df.loc[:"51", "Label Name"] = "Right " + df.loc[:"52", "Label Name"]
 
     # Add white matter to label details
     df.loc[len(df.index)] = [0, "White matter", 103]
@@ -80,7 +77,7 @@ def get_volume_ras(path, dtype=np.uint8):
     This function:
     1. Loads the volume using nibabel.
     2. Converts the volume's coordinate frame from LIA (Left, Inferior, Anterior) to RAS (Right, Anterior, Superior)
-       using the move_volume_from_LIA_to_RAS function.
+       using the move_volume_from_lia_to_ras function.
 
     Args:
         path (str): The file path of the medical image volume.
@@ -90,7 +87,7 @@ def get_volume_ras(path, dtype=np.uint8):
         Tuple[np.ndarray, np.ndarray]: A tuple containing the transformed volume data and its affine matrix.
     """
     img = nib.load(path)  # All volumes are in LIA coordinate frame
-    volume, affine = move_volume_from_LIA_to_RAS(
+    volume, affine = move_volume_from_lia_to_ras(
         np.array(img.dataobj, dtype=dtype), img.affine
     )
     return volume, affine
@@ -364,7 +361,6 @@ class CerebrA(BaseConfig):
             return "Empty region"
         if region_id > 103:
             return "Non-valid id"
-
         return self.label_details[self.label_details["CerebrA ID"] == region_id][
             "Label Name"
         ].item()
@@ -433,10 +429,11 @@ class CerebrA(BaseConfig):
         return self.find_region_centroid_from_id(region_id)
 
     def find_region_centroid_from_id(self, region_id):
-        return np.round(self.get_points_from_region_id(region_id).mean(axis=0))
+        return np.round(self.get_points_from_region_id(region_id).mean(axis=0)).astype(
+            np.uint8
+        )
 
-    # @time_func_decorator
-    def orthoview(
+    def prepare_plot_data(
         self,
         plot_src_space: bool = False,
         plot_bem_surfaces: bool = False,
@@ -452,13 +449,16 @@ class CerebrA(BaseConfig):
         if plot_bem_surfaces:
             bem_volume = self.get_bem_volume()
 
-        region_volume = None
         region_centroid = None
         if plot_highlighted_region is not None:
             assert isinstance(plot_highlighted_region, int)
             # region_pts = self.get_points_from_region_id(plot_highlighted_region)
             # region_volume = point_cloud_to_voxel(region_pts)
+            reg_name = self.get_region_name_from_region_id(plot_highlighted_region)
             region_centroid = self.find_region_centroid_from_id(plot_highlighted_region)
+            if "pt" not in kwargs:
+                kwargs["pt"] = region_centroid
+                pt_text = f"{region_centroid}\n{reg_name}"
 
         pt_dist = None
         if plot_distance_to_inner_skull:
@@ -469,20 +469,87 @@ class CerebrA(BaseConfig):
             pt = kwargs["pt"]
             pt_dist = self.get_distance_to_inner_skull(pt)
 
-        fig, axs = orthoview(
-            self.cerebra_volume,
-            self.affine,
-            src_volume=src_volume,
-            bem_volume=bem_volume,
-            pt_dist=pt_dist,
-            plot_highlighted_region=plot_highlighted_region,
-            region_centroid=region_centroid,
-            **kwargs,
-        )
-
+        pt_text = None
         if "pt" in kwargs and kwargs["pt"] is not None:
             reg_name = self.get_region_name_from_point(kwargs["pt"])
+            pt_text = f"{kwargs['pt']}\n{reg_name}"
+
+        return src_volume, bem_volume, region_centroid, pt_dist, pt_text
+
+    def plot_data(
+        self,
+        plot_type="orthoview",
+        plot_src_space: bool = False,
+        plot_bem_surfaces: bool = False,
+        plot_distance_to_inner_skull: bool = False,
+        plot_highlighted_region: int = None,
+        **kwargs,
+    ):
+        (
+            src_volume,
+            bem_volume,
+            region_centroid,
+            pt_dist,
+            pt_text,
+        ) = self.prepare_plot_data(
+            plot_src_space,
+            plot_bem_surfaces,
+            plot_distance_to_inner_skull,
+            plot_highlighted_region,
+            **kwargs,
+        )
+        if plot_type == "orthoview":
+            fig, axs = orthoview(
+                self.cerebra_volume,
+                self.affine,
+                src_volume=src_volume,
+                bem_volume=bem_volume,
+                pt_dist=pt_dist,
+                plot_highlighted_region=plot_highlighted_region,
+                region_centroid=region_centroid,
+                pt_text=pt_text,
+                **kwargs,
+            )
+            return fig, axs
+
+        elif plot_type == "single":
+            fig, ax = plot_brain_slice_2d(
+                self.cerebra_volume,
+                self.affine,
+                src_volume=src_volume,
+                bem_volume=bem_volume,
+                pt_dist=pt_dist,
+                plot_highlighted_region=plot_highlighted_region,
+                region_centroid=region_centroid,
+                pt_text=pt_text,
+                **kwargs,
+            )
+            return fig, ax
+
+        else:
+            raise ValueError(f"Unknown plot_data plot_type argument {plot_type=}")
+
+    # @time_func_decorator
+    def orthoview(
+        self,
+        **kwargs,
+    ):
+        fig, axs = self.plot_data(plot_type="orthoview", **kwargs)
+        if "pt" in kwargs and kwargs["pt"] is not None:
             reg_id = self.get_region_id_from_point(kwargs["pt"])
+            reg_name = self.get_region_name_from_region_id(reg_id)
+            fig.suptitle(f"{reg_name} id ({reg_id})")
+
+        return fig, axs
+
+    def plot(
+        self,
+        **kwargs,
+    ):
+        fig, axs = self.plot_data(plot_type="single", **kwargs)
+        if "pt" in kwargs and kwargs["pt"] is not None:
+            reg_id = self.get_region_id_from_point(kwargs["pt"])
+            reg_name = self.get_region_name_from_region_id(reg_id)
             fig.suptitle(f"{reg_name} id ({reg_id})")
 
         return fig, axs
@@ -508,5 +575,3 @@ class CerebrA(BaseConfig):
 if __name__ == "__main__":
     setup_logging()
     cerebra = CerebrA()
-
-    print(cerebra.volume_data.min(), cerebra.volume_data.max())

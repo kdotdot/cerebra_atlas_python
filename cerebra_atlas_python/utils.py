@@ -2,73 +2,71 @@
 Various common util functions
 """
 
-import requests
 import logging
 import time
+from typing import Optional, List, Tuple, Callable, Any, Union
+
 import numpy as np
 import mne
 import matplotlib.pyplot as plt
 
-from typing import Optional, List, Tuple
 
+def time_func_decorator(func: Callable) -> Callable:
+    """
+    A decorator that logs the start and end time of the execution of a function.
+    It also logs the total duration of the function's execution.
 
-def time_func_decorator(func):
-    def wrapper_function(*args, **kwargs):
-        logging.info(f'{"*" * 10} START({func.__name__}) {"*" * 10}')
+    Args:
+        func (Callable): The function to be decorated.
+
+    Returns:
+        Callable: The wrapper function which includes the logging functionality.
+    """
+
+    def wrapper_function(*args: Any, **kwargs: Any) -> Any:
+        logging.info("%s START(%s) %s", "*" * 10, func.__name__, "*" * 10)
         start_time = time.time()
         res = func(*args, **kwargs)
         end_time = time.time()
         logging.info(
-            f'{"*" * 10} END({func.__name__}) {"*" * 10} ({end_time-start_time:.2f} s)'
+            "%s END(%s) %s (%.2f s)",
+            "*" * 10,
+            func.__name__,
+            "*" * 10,
+            end_time - start_time,
         )
         return res
 
     return wrapper_function
 
 
-# https://stackoverflow.com/questions/38511444/python-download-files-from-google-drive-using-url
-def download_file_from_google_drive(id, destination):
-    URL = "https://docs.google.com/uc?export=download"
+def setup_logging(
+    level: Union[str, int] = logging.DEBUG,
+    mne_log_level: str = "WARNING",
+    plt_log_level: str = "ERROR",
+) -> None:
+    """
+    Sets up logging for the application with specified logging levels for different modules.
 
-    session = requests.Session()
+    Args:
+        level (Union[str, int]): The logging level for the main logger. Can be a string (e.g., 'DEBUG', 'INFO')
+                                  or an integer as defined in the logging module.
+        mne_log_level (str): The logging level for the MNE module, specified as a string.
+        plt_log_level (str): The logging level for the matplotlib module, specified as a string.
 
-    response = session.get(URL, params={"id": id}, stream=True)
-    token = get_confirm_token(response)
-
-    if token:
-        params = {"id": id, "confirm": token}
-        response = session.get(URL, params=params, stream=True)
-
-    save_response_content(response, destination)
-
-
-def get_confirm_token(response):
-    for key, value in response.cookies.items():
-        if key.startswith("download_warning"):
-            return value
-
-    return None
-
-
-def save_response_content(response, destination):
-    CHUNK_SIZE = 32768
-
-    with open(destination, "wb") as f:
-        for chunk in response.iter_content(CHUNK_SIZE):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
-
-
-def setup_logging(level=logging.DEBUG, mne_log_level="WARNING", plt_log_level="ERROR"):
+    Raises:
+        AssertionError: If the 'level' provided as a string is not one of the recognized logging levels.
+    """
     levels = {
         "DEBUG": logging.DEBUG,
         "ERROR": logging.ERROR,
         "INFO": logging.INFO,
         "WARNING": logging.WARNING,
     }
-    if type(level) == str:
-        assert level in levels.keys()
+    if isinstance(level, str):
+        assert level in levels, f"Unrecognized logging level: {level}"
         level = levels[level]
+
     logger = logging.getLogger()
     logger.setLevel(level=level)
     logging.basicConfig(
@@ -77,20 +75,35 @@ def setup_logging(level=logging.DEBUG, mne_log_level="WARNING", plt_log_level="E
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # MNE
+    # Setting the logging level for MNE
     mne.set_log_level(mne_log_level)
 
-    # PLT
+    # Setting the logging level for matplotlib
     plt.set_loglevel(plt_log_level.lower())
 
 
-def move_volume_from_LIA_to_RAS(volume, _affine=None):
+def move_volume_from_lia_to_ras(
+    volume: np.ndarray, affine: Optional[np.ndarray] = None
+) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    """
+    Transforms a volume from LIA (Left Inferior Anterior) orientation to RAS (Right Anterior Superior) orientation.
+
+    Args:
+        volume (np.ndarray): The input volume in LIA orientation.
+        affine (Optional[np.ndarray]): An optional affine transformation matrix associated with the volume.
+                                        If provided, it will be modified to reflect the change in orientation.
+
+    Returns:
+        Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]: The transformed volume in RAS orientation.
+                                                         If an affine matrix is provided, returns a tuple of the
+                                                         transformed volume and the modified affine matrix.
+    """
     volume = np.rot90(volume, -1, axes=(1, 2))
     volume = np.flipud(volume)
-    if _affine is None:
+    if affine is None:
         return volume
 
-    affine = _affine.copy()
+    affine = affine.copy()
     # Switch from LIA to RIA
     affine[0, -1] = 126  # Fix translation
     affine[0, 0] = 1
@@ -106,95 +119,19 @@ def move_volume_from_LIA_to_RAS(volume, _affine=None):
     return volume, affine
 
 
-# For a particular volume, check around every point and, if neighbor
-# is empty (0), propagate value from original point
-@time_func_decorator
-def expand_volume(volume, perimeter=2):
-    logging.info(f"{volume.shape= }")
-    expand_pts = np.zeros((volume.shape[0], volume.shape[1], volume.shape[2]))
-    # trace = np.zeros(256)
-    for x in range(50, 200):
-        for y in range(25, 225):
-            zs = volume[x, y, :]
-            if len(zs[zs != 0]) == 0:
-                continue
-            # print(expand_pts[x, y : y + perimeter, :].shape)
-            # return
+def find_closest_point(
+    points: List[List[float]], target_point: List[float]
+) -> Tuple[np.ndarray, float]:
+    """
+    Finds the closest point to a given target point from a list of points.
 
-            indices = np.argwhere(zs != 0)
-            z_start = int(indices[0])
-            z_end = int(indices[-1])
-            expand_pts[
-                x - perimeter : x + perimeter,
-                y - perimeter // 4 : y + perimeter // 4,
-                z_start:z_end,
-            ] = 103
+    Args:
+        points (List[List[float]]): A list of points, each point is a list of coordinates.
+        target_point (List[float]): The target point as a list of coordinates.
 
-            # expand_pts[x : x + perimeter, y, :][:, zs != 0] = np.repeat(
-            #     np.expand_dims(zs, 1), perimeter, axis=1
-            # ).T[:, zs != 0]
-
-            # expand_pts[x, y - perimeter : y, :][:, zs != 0] = np.repeat(
-            #     np.expand_dims(zs, 1), perimeter, axis=1
-            # ).T[:, zs != 0]
-
-            # expand_pts[x - perimeter : x, y, :][:, zs != 0] = np.repeat(
-            #     np.expand_dims(zs, 1), perimeter, axis=1
-            # ).T[:, zs != 0]
-
-            # expand_pts[x, y : y - perimeter, :][:, zs != 0] = np.repeat(
-            #     np.expand_dims(zs, 1), perimeter, axis=1
-            # ).T[:, zs != 0]
-
-            # expand_pts[x:+perimeter, y, :][:, zs != 0] = np.repeat(
-            #     np.expand_dims(zs, 1), perimeter, axis=1
-            # ).T[:, zs != 0]
-
-            # expand_pts[x:-perimeter, y, :][:, zs != 0] = np.repeat(
-            #     np.expand_dims(zs, 1), perimeter, axis=1
-            # ).T[:, zs != 0]
-            # expand_pts[x, y + 1, :] = zs
-            # expand_pts[x, y - 1, :] = zs
-            # expand_pts[x + 1, y, :] = zs
-            # expand_pts[x - 1, y, :] = zs
-            # expand_pts[x + 1, y + 1, :] = zs
-            # expand_pts[x - 1, y - 1, :] = zs
-            # expand_pts[x + 1, y + 1, :] = zs
-            # expand_pts[x - 1, y - 1, :] = zs
-            # print(volume[x, y, :].shape)
-            # return
-            # trace[zs != 0] = perimeter
-            # volume[x, y : y + perimeter, :][:, zs != 0] = zs[zs != 0]
-            # print(volume[x, y : y + perimeter, :][:, zs != 0].shape, zs[zs != 0])
-
-    # expand_indices = (
-    #     np.indices((perimeter, perimeter, perimeter)).reshape((3, -1)) - 1
-    # ).T
-    # pts = np.argwhere(volume != 0)
-
-    # print(pts.shape)
-
-    # for pt in pts:
-    #     x, y, z = pt
-
-    #     # val = volume[x, y, z]
-    #     # if val == 0:
-    #     #     continue
-
-    #     # Look around point and expand
-
-    #     for n in range(len(expand_indices)):
-    #         i, j, k = expand_indices[n]
-    #         # val_n = volume[x + i, y + j, z + k]  # value from neighbor
-    #         # if val_n == 0:
-    #         expand_pts[x + i, y + j, z + k] = 103
-
-    # # Propagate
-    volume[expand_pts != 0] = expand_pts[expand_pts != 0]
-    return volume
-
-
-def find_closest_point(points, target_point):
+    Returns:
+        Tuple[np.ndarray, float]: A tuple containing the closest point and its Euclidean distance from the target point.
+    """
     # Convert the points array and target point to numpy arrays if they aren't already
     points = np.asarray(points)
     target_point = np.asarray(target_point)
@@ -212,49 +149,36 @@ def find_closest_point(points, target_point):
     return points[closest_point_index], distances[closest_point_index]
 
 
-def read_config_from_file(file_path: str):
-    print(file_path)
-    file_name = file.split("/")[-1][:-2]
-    print(file_path, file_name)
-    return read_config_as_dict(section=file_name)
+def slice_volume(
+    volume: np.ndarray, fixed_value: int, axis: int = 0, n_layers: int = 1
+) -> np.ndarray:
+    """
+    Slices a given volume array along a specified axis.
 
+    Args:
+        volume (np.ndarray): The input volume array.
+        fixed_value (int): The starting value for slicing.
+        axis (int): The axis along which to slice the volume. Defaults to 0.
+        n_layers (int): The number of layers to include in the slice. Defaults to 1.
 
-def create_default_object(class_name):
-    pass
-
-
-def get_volume_ras():
-    pass
-
-
-def slice_volume(volume, fixed_value, axis=0, n_layers=1):
-    start_slice = fixed_value
-    end_slice = fixed_value + n_layers
+    Returns:
+        np.ndarray: The sliced volume array.
+    """
+    start_slice, end_slice = fixed_value, fixed_value + n_layers
     increment = 1
     logging.debug(
         "start_slice=%s  end_slice=%s  increment=%s ", start_slice, end_slice, increment
     )
     slice_idx = slice(start_slice, end_slice, increment)
     if axis == 0:
-        volume_slice = volume[slice_idx, :, :]
-    if axis == 1:
-        volume_slice = volume[:, slice_idx, :]
-    if axis == 2:
-        volume_slice = volume[:, :, slice_idx]
-    # volume_slice = np.flip(volume_slice, axis=axis)
-    return volume_slice
+        return volume[slice_idx, :, :]
+    elif axis == 1:
+        return volume[:, slice_idx, :]
+    elif axis == 2:
+        return volume[:, :, slice_idx]
+    else:
+        raise ValueError(f"Invalid axis: {axis}")
 
 
 if __name__ == "__main__":
     pass
-
-    # file_id = "13rfrvxVQe18ss2hccPy10DkKQdnNyjWL"
-    # destination = "./cer.mgz"
-    # download_file_from_google_drive(file_id, destination)
-    # path = "./config.ini"
-    # config = read_config_as_dict()
-    # # my_config_parser_dict = {s: dict(config.items(s)) for s in config.sections()}
-    # pprint(config)
-
-    # config = read_config_as_dict(section="MNIAverage")
-    # pprint(config)

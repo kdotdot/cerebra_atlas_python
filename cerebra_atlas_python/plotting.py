@@ -1,13 +1,11 @@
-import matplotlib
-import matplotlib.pyplot as plt
-import logging
-from matplotlib.colors import ListedColormap
+"""Plotting related utils"""
 import numpy as np
 import nibabel as nib
-from cerebra_atlas_python.fig_config import figure_features
-from cerebra_atlas_python.utils import slice_volume, time_func_decorator
-
-figure_features()
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+from matplotlib.colors import ListedColormap
+from cerebra_atlas_python.utils import slice_volume
 
 ori_slice = dict(
     P="Coronal", A="Coronal", I="Axial", S="Axial", L="Sagittal", R="Saggital"
@@ -15,6 +13,73 @@ ori_slice = dict(
 ori_names = dict(
     P="posterior", A="anterior", I="inferior", S="superior", L="left", R="right"
 )
+
+
+# https://github.com/RayleighLord/RayleighLordAnimations/blob/master/publication%20quality%20figures/fig_config.py
+def figure_features(tex=True, font="serif", dpi=180):
+    """Customize figure settings.
+    Args:
+        tex (bool, optional): use LaTeX. Defaults to True.
+        font (str, optional): font type. Defaults to "serif".
+        dpi (int, optional): dots per inch. Defaults to 180.
+    """
+    plt.rcParams.update(
+        {
+            "font.size": 20,
+            "font.family": font,
+            "text.usetex": tex,
+            "figure.subplot.top": 0.9,
+            "figure.subplot.right": 0.9,
+            "figure.subplot.left": 0.15,
+            "figure.subplot.bottom": 0.12,
+            "figure.subplot.hspace": 0.4,
+            "savefig.dpi": dpi,
+            "savefig.format": "png",
+            "axes.titlesize": 16,
+            "axes.labelsize": 18,
+            "axes.axisbelow": True,
+            "xtick.direction": "in",
+            "ytick.direction": "in",
+            "xtick.major.size": 5,
+            "xtick.minor.size": 2.25,
+            "xtick.major.pad": 7.5,
+            "xtick.minor.pad": 7.5,
+            "ytick.major.pad": 7.5,
+            "ytick.minor.pad": 7.5,
+            "ytick.major.size": 5,
+            "ytick.minor.size": 2.25,
+            "xtick.labelsize": 16,
+            "ytick.labelsize": 16,
+            "legend.fontsize": 16,
+            "legend.framealpha": 1,
+            "figure.titlesize": 16,
+            "lines.linewidth": 2,
+        }
+    )
+
+
+def add_grid_to_ax(ax, lines=True, locations=None):
+    """Add a grid to the current plot.
+    Args:
+        ax (Axis): axis object in which to draw the grid.
+        lines (bool, optional): add lines to the grid. Defaults to True.
+        locations (tuple, optional):
+            (xminor, xmajor, yminor, ymajor). Defaults to None.
+    """
+
+    if lines:
+        ax.grid(lines, alpha=0.5, which="minor", ls=":")
+        ax.grid(lines, alpha=0.7, which="major")
+
+    if locations is not None:
+        assert len(locations) == 4, "Invalid entry for the locations of the markers"
+
+        xmin, xmaj, ymin, ymaj = locations
+
+        ax.xaxis.set_minor_locator(MultipleLocator(xmin))
+        ax.xaxis.set_major_locator(MultipleLocator(xmaj))
+        ax.yaxis.set_minor_locator(MultipleLocator(ymin))
+        ax.yaxis.set_major_locator(MultipleLocator(ymaj))
 
 
 def get_ax_labels(axis):
@@ -30,13 +95,20 @@ def get_ax_labels(axis):
     return x_label, y_label
 
 
-def get_2d_fig_ax(fig=None, ax=None, figsize=(6, 6)):
+def get_2d_fig_ax(
+    fig=None, ax=None, figsize=(6, 6), use_latex_figures=True, add_grid=False
+):
     if ax is None:
-        fig = plt.figure(figsize)
+        fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot()
 
     ax.set_xlim([0, 256])
     ax.set_ylim([0, 256])
+
+    if use_latex_figures:
+        figure_features()
+    if add_grid:
+        add_grid_to_ax(ax)
 
     return fig, ax
 
@@ -50,71 +122,41 @@ def remove_ax(ax):
     ax.spines["left"].set_visible(False)
 
 
-def get_orthoview_axes(figsize=(7, 7)):
+def get_orthoview_axes(
+    figsize=(7, 7),
+    use_latex_figures=True,
+    add_grid=False,
+):
     fig, axs = plt.subplots(2, 2, figsize=figsize)
 
-    _, axs[0, 0] = get_2d_fig_ax(None, axs[0, 0])
-    _, axs[0, 1] = get_2d_fig_ax(None, axs[0, 1])
-    _, axs[1, 0] = get_2d_fig_ax(None, axs[1, 0])
+    _, axs[0, 0] = get_2d_fig_ax(
+        None, axs[0, 0], use_latex_figures=use_latex_figures, add_grid=add_grid
+    )
+    _, axs[0, 1] = get_2d_fig_ax(
+        None, axs[0, 1], use_latex_figures=use_latex_figures, add_grid=add_grid
+    )
+    _, axs[1, 0] = get_2d_fig_ax(
+        None, axs[1, 0], use_latex_figures=use_latex_figures, add_grid=add_grid
+    )
     remove_ax(axs[1, 1])
 
     return fig, axs
 
 
-# def merge_points_(xs_ys_arr, cs_arr, alphas_arr):
-#     xs_ys_keep, xs_ys_new = xs_ys_arr
-#     cs_keep, cs_new = cs_arr
-#     alphas_keep, alphas_new = alphas_arr
-#     print(xs_ys_new.shape, xs_ys_keep.shape)
-#     non_dup_mask = ~np.isin(xs_ys_new, xs_ys_keep).all(axis=1)
-
-#     print(xs_ys_new.shape, cs_new.shape, non_dup_mask.shape)
-#     print(xs_ys_new, xs_ys_keep)
-#     xs_ys = np.append(xs_ys_keep, xs_ys_new[non_dup_mask, :], 0)
-#     cs = np.concatenate([cs_keep, cs_new[non_dup_mask, :]])
-#     alphas = np.append(alphas_keep, alphas_new[non_dup_mask])
-
-#     return xs_ys, cs, alphas
-
-
-@time_func_decorator
-def merge_points_(
-    xs_ys_arr, cs_arr, alphas_arr, default_color=[0.2, 0.2, 0.2, 1], default_alpha=1
-):
-    xs_ys_keep, xs_ys_new = xs_ys_arr
-    cs_keep, cs_new = cs_arr
-    alphas_keep, alphas_new = alphas_arr
-
-    # Identify non-duplicate points
-    # We'll compare each point in xs_ys_new to all points in xs_ys_keep
-    non_dup_mask = ~np.any(
-        np.all(xs_ys_new[:, np.newaxis] == xs_ys_keep, axis=2), axis=1
-    )
-
-    # Merge arrays while keeping only non-duplicate points
-    xs_ys = np.vstack((xs_ys_keep, xs_ys_new[non_dup_mask]))
-    if cs_keep is None:
-        cs_keep = np.repeat(default_color, xs_ys_keep.shape[0])
-    elif cs_new is None:
-        cs_new = np.repeat(default_color, xs_ys_new.shape[0])
-    cs = np.vstack((cs_keep, cs_new[non_dup_mask]))
-    if alphas_keep is None:
-        alphas_keep = np.repeat(default_alpha, xs_ys_keep.shape[0])
-    elif alphas_new is None:
-        alphas_new = np.repeat(default_alpha, xs_ys_new.shape[0])
-
-    alphas = np.concatenate((alphas_keep, alphas_new[non_dup_mask]))
-
-    return xs_ys, cs, alphas
-
-
-@time_func_decorator
 def merge_points_optimized(
-    xs_ys_arr, cs_arr, alphas_arr, default_color=[0.2, 0.2, 0.2, 1], default_alpha=1
+    xs_ys_arr, cs_arr, alphas_arr, default_color=None, default_alpha=1
 ):
+    default_color = default_color or [0.2, 0.2, 0.2, 1]
     xs_ys_keep, xs_ys_new = xs_ys_arr
     cs_keep, cs_new = cs_arr
     alphas_keep, alphas_new = alphas_arr
+
+    if xs_ys_keep is None:
+        if alphas_new is None:
+            alphas_new = np.full(len(xs_ys_new), default_alpha)
+        if cs_new is None:
+            cs_new = np.full(len(cs_new), default_alpha)
+        return xs_ys_new, cs_new, alphas_new
 
     # Step 1: Use a hash-based approach to identify non-duplicate points
     keep_set = set(map(tuple, xs_ys_keep))
@@ -129,8 +171,8 @@ def merge_points_optimized(
     if cs_new is not None:
         cs_new = cs_new[non_dup_indices]  # Index the cs_new list
 
-    if alphas_keep is None:
-        alphas_keep = np.full(len(xs_ys_keep), default_alpha)
+    if alphas_new is None:
+        alphas_new = np.full(len(xs_ys_new), default_alpha)
     if alphas_new is not None:
         alphas_new = alphas_new[non_dup_indices]  # Index the alphas_new list
 
@@ -147,22 +189,23 @@ def merge_points_optimized(
 
 
 def project_volume_2d(
-    volume_slice, axis=0, colors=None, alpha_values=None, avoid_values=[0]
+    volume_slice, axis=0, colors=None, alpha_values=None, avoid_values=None
 ):
+    avoid_values = avoid_values or [0]
     x_label, y_label = get_ax_labels(axis)
 
     mask = ~np.isin(volume_slice, avoid_values)
-    xyzs = np.array(np.where(mask))
+    xyzs = np.where(mask)
     xs_ys = np.array([xyzs[x_label], xyzs[y_label]])
 
     # FILTER_DUPLICATES
     xs_ys, unique_indices = np.unique(xs_ys, axis=1, return_index=True)
 
-    xyzs = xyzs[:, unique_indices]
+    xyzs = np.take(xyzs, unique_indices, axis=1)
 
-    new_values = volume_slice[xyzs[0], xyzs[1], xyzs[2]]
-    cs = colors[new_values] if colors is not None else colors
-    alphas = alpha_values[new_values] if alpha_values is not None else alpha_values
+    new_values = volume_slice[tuple(xyzs)]
+    cs = colors[new_values] if colors is not None else None
+    alphas = alpha_values[new_values] if alpha_values is not None else None
 
     return xs_ys.T, cs, alphas
 
@@ -175,7 +218,7 @@ def get_cmap_colors(cmap_name="gist_rainbow", n_classes=103):
     colors[-1] = white
     black = np.array([0, 0, 0, 1])
     colors[0] = black
-    return colors
+    return colors[:, :3]
 
 
 def get_cmap():
@@ -202,23 +245,39 @@ def plot_brain_slice_2d(
     pt_dist=None,
     cmap_name="default",
     s=2,
+    fig=None,
     ax=None,
     pt=None,
+    pt_text=None,
     slice_figsize=(6, 6),
     n_layers: str or int = "max",
-    n_layers_max=40,
+    n_layers_max=100,
+    use_latex_figures=True,
+    add_grid=False,
+    add_top_left_info=True,
+    add_coordinate_frame_info=True,
+    add_ax_labels=True,
+    add_ax_ticks=False,
 ):
     x_label, y_label = get_ax_labels(axis)
 
     # Obtain matplotlib ax handle
     if ax is None:
-        _, ax = get_2d_fig_ax(figsize=slice_figsize)
+        fig, ax = get_2d_fig_ax(
+            figsize=slice_figsize,
+            use_latex_figures=use_latex_figures,
+            add_grid=add_grid,
+        )
 
     # Configure ax
     ax_labels = ["X", "Y", "Z"]
 
-    ax.set_xlabel(ax_labels[x_label])
-    ax.set_ylabel(ax_labels[y_label])
+    if add_ax_labels:
+        ax.set_xlabel(ax_labels[x_label])
+        ax.set_ylabel(ax_labels[y_label])
+
+    if not add_ax_ticks:
+        ax.set_axis_off()
 
     # Setting fixed value (constant value for plotting plane)
     plot_plane_values = None
@@ -228,35 +287,37 @@ def plot_brain_slice_2d(
         fixed_value = pt[axis]
         plot_plane_values = pt
     elif plot_highlighted_region is not None and region_centroid is not None:
+        pt = region_centroid
         fixed_value = region_centroid[axis]
         plot_plane_values = region_centroid
     else:
         fixed_value = int(affine[:, -1][axis])
-        plot_plane_values = int(affine[:, -1])
+        plot_plane_values = (affine[:, -1][:3]).astype(int)
 
     codes = nib.orientations.aff2axcodes(affine)
-
     inverse_codes = {"R": "L", "A": "P", "S": "I", "L": "R", "P": "A", "I": "S"}
 
-    ax.text(
-        120, 10, inverse_codes[codes[y_label]], c="white" if plot_empty else "black"
-    )
-    ax.text(120, 240, codes[y_label], c="white" if plot_empty else "black")
+    if add_coordinate_frame_info:
+        ax.text(
+            120, 10, inverse_codes[codes[y_label]], c="white" if plot_empty else "black"
+        )
+        ax.text(120, 240, codes[y_label], c="white" if plot_empty else "black")
 
-    ax.text(
-        10, 120, inverse_codes[codes[x_label]], c="white" if plot_empty else "black"
-    )
-    ax.text(240, 120, codes[x_label], c="white" if plot_empty else "black")
+        ax.text(
+            10, 120, inverse_codes[codes[x_label]], c="white" if plot_empty else "black"
+        )
+        ax.text(240, 120, codes[x_label], c="white" if plot_empty else "black")
 
-    ax.text(
-        10,
-        220,
-        f"""{codes[axis]} ({ax_labels[axis]})= {fixed_value}
-        {"".join(codes)}
-        {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
-        """,
-        c="white" if plot_empty else "black",
-    ).set_fontsize(10)
+    if add_top_left_info:
+        ax.text(
+            10,
+            220,
+            f"""{codes[axis]} ({ax_labels[axis]})= {fixed_value}
+            {"".join(codes)}
+            {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
+            """,
+            c="white" if plot_empty else "black",
+        ).set_fontsize(10)
 
     if cmap_name != "default" or cerebra_volume.max() > 103:
         cmap_name = "gray" if cmap_name == "default" else cmap_name
@@ -267,6 +328,27 @@ def plot_brain_slice_2d(
     # NOTE: Having repeated values for scatterplots
     # (i.e. [x=1,y=1,c='white',x=1,y=1,c='red'...]) increase processing time
     # Be careful when creating new scatterplots that overlap
+
+    # PLOT VOLUMES
+    # NOTE:FIRST PROCESSED ARE SHOWN ON UPPER LAYER
+    # (FIRST SRC VOL THEN REGIONS THEN BEM...)
+
+    xs_ys, cs, alphas = None, None, None
+    # SRC VOLUME
+    if src_volume is not None:
+        src_slice = slice_volume(
+            src_volume, fixed_value=fixed_value, axis=axis, n_layers=40
+        )
+
+        new_xs_ys, new_cs, new_alphas = project_volume_2d(
+            src_slice,
+            axis=axis,
+            colors=get_cmap_colors("hsv", src_volume.max()),
+        )
+
+        xs_ys, cs, alphas = merge_points_optimized(
+            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
+        )
 
     # REGIONS
     if plot_regions:
@@ -291,106 +373,62 @@ def plot_brain_slice_2d(
             alpha_values = np.ones(104) * 0.1
             alpha_values[plot_highlighted_region] = 1
 
-        xs_ys, cs, alphas = project_volume_2d(
+        new_xs_ys, new_cs, new_alphas = project_volume_2d(
             cerebra_slice,
             axis=axis,
             colors=colors,
             avoid_values=avoid_values,
             alpha_values=alpha_values,
         )
-        print(
-            f"{xs_ys.shape= } {cs.shape if cs is not None else cs=  } {alpha_values.shape if alpha_values is not None else alpha_values=  }"
+        xs_ys, cs, alphas = merge_points_optimized(
+            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
         )
 
     # BEM SURFACES
     if bem_volume is not None:
         bem_slice = slice_volume(
-            bem_volume, fixed_value=fixed_value, axis=axis, n_layers=40
+            bem_volume, fixed_value=fixed_value, axis=axis, n_layers=10
         )
-        new_xys_ys, new_cs, new_alphas = project_volume_2d(
+        new_xs_ys, new_cs, new_alphas = project_volume_2d(
             bem_slice,
             axis=axis,
             colors=get_cmap_colors("hsv", bem_volume.max()),
             alpha_values=np.array([0, 0.10, 0.10, 0.05]),
         )
         xs_ys, cs, alphas = merge_points_optimized(
-            [xs_ys, new_xys_ys], [cs, new_cs], [alphas, new_alphas]
-        )
-        print(
-            f"{xs_ys.shape= } {cs.shape if cs is not None else cs=  } {alpha_values.shape if alpha_values is not None else alpha_values=  }"
+            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
         )
 
-    # for i in range(3):  # NOTE: Layering (off)
-    #     for x in range(0, 256, 1):
-    #         for y in range(0, 256, 1):
-    #             if axis == 0:
-    #                 val = volume_data[fixed_value - i, x, y]
-    #             elif axis == 1:
-    #                 val = volume_data[x, fixed_value - i, y]
-    #             elif axis == 2:
-    #                 val = volume_data[x, y, fixed_value - i]
+    # Plot point
+    if pt is not None:
+        ax.vlines(pt[x_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
+        ax.hlines(pt[y_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
 
-    #             if val == 0 and not plot_empty:
-    #                 continue
-    #             if val == 103 and not plot_whitematter:
-    #                 continue
-    #             if val != 0 and val != 103 and not plot_regions:
-    #                 continue
-    #             xs.append(x)
-    #             ys.append(y)
-    #             cs.append(colors[int(val)])
+        ax.scatter(pt[x_label], pt[y_label])
 
-    #     ax.scatter(xs, ys, s=s, c=cs)  # , c=
+        if pt_text is not None:
+            ax.text(
+                pt[x_label] + 5,
+                pt[y_label] + 5,
+                pt_text,
+                fontsize=8,
+                c="white" if plot_empty else "black",
+            )
 
-    # # Plot point
-    # if pt is not None:
-    #     ax.vlines(pt[x_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
-    #     ax.hlines(pt[y_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
-
-    #     ax.scatter(pt[x_label], pt[y_label])
-
-    # aff_translate = affine[:-1, 3]
-
-    # # TODO: Comprobar que pt y src_volume funciona bien
-    # if src_volume is not None:
-    #     xs = []
-    #     ys = []
-    #     cs = []
-
-    #     should_plot = False
-    #     for i in range(10):  # Layering
-    #         for x in range(0, 256, 1):
-    #             for y in range(0, 256, 1):
-
-    #                 if val > 0:
-    #                     should_plot = True
-    #                     xs.append(x)
-    #                     ys.append(y)
-    #                     cs.append("#333" if val == 1 else "#DDD")
-    #         if should_plot:
-    #             break
-    #     ax.scatter(xs, ys, s=s, c=cs)  # , c=
-
-    # if pt_dist is not None:
-    #     inner_skull_pt, inner_skull_dist = pt_dist
-    #     ax.plot(
-    #         [inner_skull_pt[x_label], pt[x_label]],
-    #         [inner_skull_pt[y_label], pt[y_label]],
-    #         marker="o",
-    #         c="red",
-    #     )
+    if pt_dist is not None:
+        inner_skull_pt, inner_skull_dist = pt_dist
+        ax.plot(
+            [inner_skull_pt[x_label], pt[x_label]],
+            [inner_skull_pt[y_label], pt[y_label]],
+            marker="o",
+            c="red",
+        )
 
     xs, ys = xs_ys.T
-
-    # cs = np.concatenate(cs)
-    # alphas = np.concatenate(alphas)
-
     ax.scatter(xs, ys, c=cs, alpha=alphas, s=s)
-    # ax.scatter(xs, ys, c=cs, alpha=alphas, s=s)
 
     if plot_planes:
         ax.hlines(
-            # -aff_translate[y_label] * affine[y_label, :-1].sum(),
             plot_plane_values[y_label],
             0,
             256,
@@ -401,7 +439,6 @@ def plot_brain_slice_2d(
             else "gray",
         )
         ax.vlines(
-            # 255 + aff_translate[x_label] * affine[x_label, :-1].sum(),
             plot_plane_values[x_label],
             0,
             256,
@@ -412,12 +449,42 @@ def plot_brain_slice_2d(
             else "gray",
         )
 
-    return ax
+    if plot_affine:
+        aff_translate = affine[:-1, 3]
+        ax.hlines(
+            aff_translate[y_label],
+            0,
+            256,
+            linestyles="dotted",
+            alpha=0.5,
+            colors="gray",
+        )
+        ax.vlines(
+            aff_translate[x_label],
+            0,
+            256,
+            linestyles="dotted",
+            alpha=0.5,
+            colors="gray",
+        )
+
+    return fig, ax
 
 
-def orthoview(volume, affine, axs=None, fig=None, figsize=(15, 15), **kwargs):
+def orthoview(
+    volume,
+    affine,
+    axs=None,
+    fig=None,
+    figsize=(15, 15),
+    use_latex_figures=True,
+    add_grid=False,
+    **kwargs,
+):
     if axs is None:
-        fig, axs = get_orthoview_axes(figsize=figsize)
+        fig, axs = get_orthoview_axes(
+            figsize=figsize, use_latex_figures=use_latex_figures, add_grid=add_grid
+        )
 
     plot_brain_slice_2d(
         volume,

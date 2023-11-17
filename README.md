@@ -1,4 +1,10 @@
+cerebra-atlas-python functionality
+
+abstract coordinate frame transformations
+
 CerebrA is an accurate non-linear registration of cortical and subcortical labelling from Mindboggle 101 to the symmetric MNI-ICBM2009c atlas followed by manual editing.
+
+<div style="display:flex;align-items:center;justify-content:center;background-color:aliceblue;padding:25px;flex-direction:column"><img src="./images/example.png" alt="BEM MANUAL EDIT" width=50%></img><br/><small>Cerebra Atlas</small></div>
 
 MNIAverage: https://www.dropbox.com/scl/fi/zoff6ihk3711zn6phu2zt/MNIAverage.zip?rlkey=jrg63liehpuhus4suyyfmibuz&dl=0
 Cerebra Atlas: https://www.dropbox.com/scl/fi/ivvh2afex6idffmano3qj/10.12751_g-node.be5e62.zip?rlkey=ie3w8lbd5b5377xotsjgnwkrg&dl=0
@@ -12,9 +18,11 @@ Cerebra Atlas: https://www.dropbox.com/scl/fi/ivvh2afex6idffmano3qj/10.12751_g-n
 
 ```
 from cerebra-atlas-python import CerebrA
-
 cerebra = CerebrA()
+cerebra.orthoview()
 ```
+
+<div style="display:flex;align-items:center;justify-content:center;padding:25px;flex-direction:column"><img src="./images/orthoview_example.png" alt="BEM MANUAL EDIT" width=100%></img><br/><small>Cerebra Atlas</small></div>
 
 ### BUILDING SURFACES (optional)
 
