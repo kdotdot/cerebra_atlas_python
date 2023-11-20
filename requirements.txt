@@ -1,0 +1,6 @@
+mne==1.5.1
+matplotlib==3.8.1
+matplotlib-inline==0.1.6
+numpy==1.26.1
+nibabel==5.1.0
+configparser==6.0.0

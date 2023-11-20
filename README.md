@@ -24,6 +24,19 @@ cerebra.orthoview()
 
 <div style="display:flex;align-items:center;justify-content:center;padding:25px;flex-direction:column"><img src="./images/orthoview_example.png" alt="BEM MANUAL EDIT" width=100%></img><br/><small>Cerebra Atlas</small></div>
 
+### INSTALL
+
+#### Building wheels
+
+```
+$ git clone https://github.com/kdotdot/cerebra-atlas-python.git
+$ cd cerebra-atlas-python
+$ pip install -r requirements.txt
+$ pip install build
+$ pip install build
+$ pip install .
+```
+
 ### BUILDING SURFACES (optional)
 
 How to build CerebrA_in_head.mgz
@@ -62,4 +75,9 @@ CerebrA_in_head.mgz can be computed using Freesurfer and the following commands.
 
 ### TODOS:
 
-- Create python dependencies file
+- Update README
+- Create documentation page
+- Publish library
+  -> Get DOI
+  -> Create python dependencies file
+  -> Upload to pip

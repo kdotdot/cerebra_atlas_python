@@ -1,4 +1,5 @@
 """Plotting related utils"""
+from typing import Optional, Tuple
 import numpy as np
 import nibabel as nib
 import matplotlib
@@ -82,22 +83,60 @@ def add_grid_to_ax(ax, lines=True, locations=None):
         ax.yaxis.set_major_locator(MultipleLocator(ymaj))
 
 
-def get_ax_labels(axis):
+def get_ax_labels(axis: int) -> tuple[int, int]:
+    """
+    Determines the x and y axis labels based on the provided axis.
+
+    This function takes an integer representing an axis (0, 1, or 2) and returns
+    a tuple of integers representing the x and y labels. The labels are determined
+    as follows:
+    - If axis is 0, x_label is 1 and y_label is 2.
+    - If axis is 1, x_label is 0 and y_label is 2.
+    - If axis is 2, x_label is 0 and y_label is 1.
+
+    Parameters:
+    axis (int): An integer representing the axis (expected to be 0, 1, or 2).
+
+    Returns:
+    tuple[int, int]: A tuple containing two integers representing the x and y labels.
+    """
     if axis == 0:
         x_label = 1
         y_label = 2
-    if axis == 1:
+    elif axis == 1:
         x_label = 0
         y_label = 2
-    if axis == 2:
+    elif axis == 2:
         x_label = 0
         y_label = 1
+    else:
+        raise ValueError("axis must be 0, 1, or 2")
     return x_label, y_label
 
 
 def get_2d_fig_ax(
-    fig=None, ax=None, figsize=(6, 6), use_latex_figures=True, add_grid=False
-):
+    fig: Optional[plt.Figure] = None,
+    ax: Optional[plt.Axes] = None,
+    figsize: Tuple[int, int] = (6, 6),
+    use_latex_figures: bool = True,
+    add_grid: bool = False,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """
+    Creates a 2D figure and axes with optional LaTeX styling and grid.
+
+    This function can take an existing matplotlib figure and axes objects or create new ones.
+    It sets the limits of the axes and optionally applies LaTeX styling and adds a grid.
+
+    Parameters:
+    fig (Optional[plt.Figure]): An optional matplotlib figure object. Defaults to None.
+    ax (Optional[plt.Axes]): An optional matplotlib axes object. Defaults to None.
+    figsize (Tuple[int, int]): Size of the figure, defaults to (6, 6).
+    use_latex_figures (bool): If True, applies LaTeX styling to the figure. Defaults to True.
+    add_grid (bool): If True, adds a grid to the axes. Defaults to False.
+
+    Returns:
+    Tuple[plt.Figure, plt.Axes]: A tuple containing the matplotlib figure and axes objects.
+    """
     if ax is None:
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot()
@@ -113,7 +152,16 @@ def get_2d_fig_ax(
     return fig, ax
 
 
-def remove_ax(ax):
+def remove_ax(ax: plt.Axes) -> None:
+    """
+    Hides all the elements of a given matplotlib axis.
+
+    This function takes a matplotlib axes object and hides its x-axis, y-axis,
+    and all four spines (top, right, bottom, left).
+
+    Parameters:
+    ax (Axes): A matplotlib axes object on which the elements are to be hidden.
+    """
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
     ax.spines["top"].set_visible(False)
@@ -123,12 +171,27 @@ def remove_ax(ax):
 
 
 def get_orthoview_axes(
-    figsize=(7, 7),
-    use_latex_figures=True,
-    add_grid=False,
-):
+    figsize: Tuple[int, int] = (7, 7),
+    use_latex_figures: bool = True,
+    add_grid: bool = False,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """
+    Creates a 2x2 grid of matplotlib subplots for displaying orthogonal views.
+
+    This function sets up a 2x2 grid of subplots using matplotlib, with three of these subplots
+    configured using the get_2d_fig_ax function, and the fourth subplot hidden using remove_ax.
+
+    Parameters:
+    figsize (Tuple[int, int]): Size of the figure, defaults to (7, 7).
+    use_latex_figures (bool): If True, applies LaTeX styling to the figure. Defaults to True.
+    add_grid (bool): If True, adds a grid to the subplots. Defaults to False.
+
+    Returns:
+    Tuple[plt.Figure, np.ndarray]: A tuple containing the matplotlib figure and a 2x2 numpy array of axes objects.
+    """
     fig, axs = plt.subplots(2, 2, figsize=figsize)
 
+    # Configure the first three subplots
     _, axs[0, 0] = get_2d_fig_ax(
         None, axs[0, 0], use_latex_figures=use_latex_figures, add_grid=add_grid
     )
@@ -138,14 +201,38 @@ def get_orthoview_axes(
     _, axs[1, 0] = get_2d_fig_ax(
         None, axs[1, 0], use_latex_figures=use_latex_figures, add_grid=add_grid
     )
+    # Hide the fourth subplot
     remove_ax(axs[1, 1])
 
     return fig, axs
 
 
 def merge_points_optimized(
-    xs_ys_arr, cs_arr, alphas_arr, default_color=None, default_alpha=1
-):
+    xs_ys_arr: Tuple[np.ndarray, np.ndarray],
+    cs_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
+    alphas_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
+    default_color: Optional[list] = None,
+    default_alpha: float = 1,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Merges two sets of points, colors, and alpha values while removing duplicates.
+
+    This function takes two sets of points, their corresponding colors and alpha values,
+    and merges them into single arrays. It ensures that points in the second set that are
+    duplicates of points in the first set are not included in the merged result. It also
+    handles default colors and alpha values for new points.
+
+    Parameters:
+    xs_ys_arr (Tuple[np.ndarray, np.ndarray]): Tuple of two arrays of points (x, y coordinates).
+    cs_arr (Tuple[Optional[np.ndarray], Optional[np.ndarray]]): Tuple of two color arrays.
+    alphas_arr (Tuple[Optional[np.ndarray], Optional[np.ndarray]]): Tuple of two alpha arrays.
+    default_color (Optional[list]): Default color for new points. Defaults to [0.2, 0.2, 0.2, 1].
+    default_alpha (float): Default alpha value for new points. Defaults to 1.
+
+    Returns:
+    Tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing merged arrays of points,
+                                               colors, and alpha values.
+    """
     default_color = default_color or [0.2, 0.2, 0.2, 1]
     xs_ys_keep, xs_ys_new = xs_ys_arr
     cs_keep, cs_new = cs_arr

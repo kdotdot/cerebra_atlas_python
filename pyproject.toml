@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cerebra_atlas_python"
+version = "0.0.1"
+authors = [{ name = "kdotdot", email = "carlos.g.tapia@mytudublin.ie" }]
+description = "Cerebra atlas, average brain volume package"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/kdotdot/cerebra-atlas-python"
+# Issues = ""
+
+[tool.setuptools]
+
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["cerebra_data"]
