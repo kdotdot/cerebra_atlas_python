@@ -33,7 +33,7 @@ $ git clone https://github.com/kdotdot/cerebra-atlas-python.git
 $ cd cerebra-atlas-python
 $ pip install -r requirements.txt
 $ pip install build
-$ pip install build
+$ python -m build
 $ pip install .
 ```
 

@@ -223,7 +223,7 @@ class CerebrA(BaseConfig):
         self.default_data_path: str = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
-            "default_data_path": "../cerebra_data/cerebra",
+            "default_data_path": "./cerebra_data/cerebra",
         }
 
         super().__init__(

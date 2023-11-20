@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "cerebra_atlas_python"
@@ -20,8 +20,10 @@ Homepage = "https://github.com/kdotdot/cerebra-atlas-python"
 # Issues = ""
 
 [tool.setuptools]
-
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["cerebra_data"]
+where = ["./cerebra_atlas_python/"]
+
+[tool.setuptools.package-data]
+"cerebra_atlas_python" = ["./cerebra_atlas_python/cerebra_data/*"]

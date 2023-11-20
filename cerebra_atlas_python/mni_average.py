@@ -56,7 +56,7 @@ class MNIAverage(BaseConfig):
             "fs_subjects_dir": os.getenv("SUBJECTaS_DIR"),
             "bem_conductivity": (0.33, 0.0042, 0.33),
             "bem_ico": 4,
-            "default_data_path": "../cerebra_data",
+            "default_data_path": "./cerebra_data",
         }
 
         super().__init__(
