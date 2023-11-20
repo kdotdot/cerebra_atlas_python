@@ -1,4 +1,4 @@
-cerebra-atlas-python functionality
+cerebra_atlas_python functionality
 
 abstract coordinate frame transformations
 
@@ -17,7 +17,7 @@ Cerebra Atlas: https://www.dropbox.com/scl/fi/ivvh2afex6idffmano3qj/10.12751_g-n
 ### USAGE / USE CASES
 
 ```
-from cerebra-atlas-python import CerebrA
+from cerebra_atlas_python import CerebrA
 cerebra = CerebrA()
 cerebra.orthoview()
 ```
@@ -29,8 +29,8 @@ cerebra.orthoview()
 #### Building wheels
 
 ```
-$ git clone https://github.com/kdotdot/cerebra-atlas-python.git
-$ cd cerebra-atlas-python
+$ git clone https://github.com/kdotdot/cerebra_atlas_python.git
+$ cd cerebra_atlas_python
 $ pip install -r requirements.txt
 $ pip install build
 $ python -m build

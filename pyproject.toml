@@ -16,14 +16,17 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/kdotdot/cerebra-atlas-python"
+Homepage = "https://github.com/kdotdot/cerebra_atlas_python"
 # Issues = ""
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["./cerebra_atlas_python/"]
+where = ["."] # Point to the project root
 
 [tool.setuptools.package-data]
-"cerebra_atlas_python" = ["./cerebra_atlas_python/cerebra_data/*"]
+"cerebra_atlas_python" = [
+    "cerebra_data/*",
+    "config.ini",
+] # Path relative to the package
