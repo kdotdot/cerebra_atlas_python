@@ -194,6 +194,7 @@ class CerebrA(BaseConfig):
     coordinate frame transformations and region-based analysis.
 
     Args:
+        config_path: (Optional[str]): Path to the config.ini file
         mni_average (Optional[MNIAverage]): An instance of MNIAverage. If None, a new instance is created.
         MNIAverageKwArgs (Optional[Dict[Any, Any]]): Keyword arguments for creating an MNIAverage instance.
         **kwargs: Additional keyword arguments for BaseConfig.
@@ -215,6 +216,7 @@ class CerebrA(BaseConfig):
 
     def __init__(
         self,
+        config_path=op.dirname(__file__) + "/config.ini",
         mni_average=None,
         MNIAverageKwArgs=None,
         **kwargs,
@@ -223,12 +225,13 @@ class CerebrA(BaseConfig):
         self.default_data_path: str = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
-            "default_data_path": "./cerebra_data/cerebra",
+            "default_data_path": op.dirname(__file__) + "/cerebra_data",
         }
 
         super().__init__(
             parent_name=self.__class__.__name__,
             default_config=default_config,
+            config_path=config_path,
             **kwargs,
         )
 

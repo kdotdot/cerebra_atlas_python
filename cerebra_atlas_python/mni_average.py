@@ -45,7 +45,7 @@ class MNIAverage(BaseConfig):
         get_bem_surfaces: Get the surfaces of the boundary element model.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, config_path=op.dirname(__file__) + "/config.ini", **kwargs):
         self.mniaverage_output_path: str = None
         self.fs_subjects_dir: str = None
         self.bem_conductivity: Tuple[float, float, float] = None
@@ -53,13 +53,14 @@ class MNIAverage(BaseConfig):
         self.default_data_path: str = None
         default_config = {
             "mniaverage_output_path": "./generated/models",
-            "fs_subjects_dir": os.getenv("SUBJECTaS_DIR"),
+            "fs_subjects_dir": os.getenv("SUBJECTS_DIR"),
             "bem_conductivity": (0.33, 0.0042, 0.33),
             "bem_ico": 4,
-            "default_data_path": "./cerebra_data",
+            "default_data_path": op.dirname(__file__) + "/cerebra_data",
         }
 
         super().__init__(
+            config_path=config_path,
             parent_name=self.__class__.__name__,
             default_config=default_config,
             **kwargs,
@@ -71,6 +72,8 @@ class MNIAverage(BaseConfig):
         # If output folder does not exist, create it
         if not op.exists(self.mniaverage_output_path):
             os.makedirs(self.mniaverage_output_path, exist_ok=True)
+
+        # self.default_data_path =
 
         if not self.fs_subjects_dir:
             logging.info(
@@ -289,4 +292,5 @@ class MNIAverage(BaseConfig):
 
 if __name__ == "__main__":
     # NOTE: does not work because of imports
+    print()
     mniAverage = MNIAverage(bem_ico=4)

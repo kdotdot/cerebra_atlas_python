@@ -65,8 +65,8 @@ def read_config_as_dict(
             success = False
     else:
         if section not in config_parser.sections():
-            logging.warning(
-                "Section '{section}' does not exist in config file: %s", file_path
+            logging.error(
+                "Section '%s' does not exist in config file: %s", section, file_path
             )
             success = False
         else:
@@ -98,6 +98,7 @@ class BaseConfig(ABC):  # Abstract class
         self,
         parent_name: str,
         default_config: Optional[Dict[str, Any]] = None,
+        config_path: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -112,6 +113,7 @@ class BaseConfig(ABC):  # Abstract class
             default_config (Optional[Dict[str, Any]]): A dictionary of default configuration values.
                                                       Used if the configuration file is missing or incomplete.
                                                       Defaults to None.
+            config_path (Optional[str]): Path to configuration file
             **kwargs: Additional keyword arguments representing runtime configuration overrides.
 
         Note:
@@ -121,7 +123,9 @@ class BaseConfig(ABC):  # Abstract class
         default_config = default_config or {}
 
         # Attempt to read the configuration
-        config, config_success = read_config_as_dict(section=parent_name)
+        config, config_success = read_config_as_dict(
+            file_path=config_path, section=parent_name
+        )
 
         # Choose config.ini over default_config
         if not config_success:
@@ -152,7 +156,11 @@ class BaseConfig(ABC):  # Abstract class
             try:
                 # Attempt to evaluate the value if it's a string that represents a Python literal
                 parsed_value = eval(value)
-            except (SyntaxError, TypeError):  # String / Boolean throw error at eval()
+            except (
+                SyntaxError,
+                TypeError,
+                NameError,
+            ):  # String / Boolean throw error at eval()
                 # Retain the original string value if eval fails
                 parsed_value = value
             setattr(self, key, parsed_value)
