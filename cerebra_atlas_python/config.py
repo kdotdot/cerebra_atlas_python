@@ -80,8 +80,6 @@ def read_config_as_dict(
                     )
             config_dict = config_dict[section]
 
-    print(config_dict)
-
     return config_dict, success
 
 
