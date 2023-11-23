@@ -54,14 +54,15 @@ def read_config_as_dict(
     if section is None:
         for section in config_parser.sections():
             config_dict[section] = {}
-            for key in config_parser[section]:
+            # Adds default values to every section
+            for key in [*config_parser[section], *config_parser["DEFAULT"]]:
                 if key.upper() not in os.environ:
                     config_dict[section][key] = attempt_get_value(
                         config_parser, section, key
                     )
 
         if not config_dict:
-            logging.warning("Attempted to read empty config file: %s", file_path)
+            logging.warning("Attempt to read empty config file: %s", file_path)
             success = False
     else:
         if section not in config_parser.sections():
@@ -71,12 +72,15 @@ def read_config_as_dict(
             success = False
         else:
             config_dict[section] = {}
-            for key in config_parser[section]:
+            # Adds default values to every section
+            for key in [*config_parser[section], *config_parser["DEFAULT"]]:
                 if key.upper() not in os.environ:
                     config_dict[section][key] = attempt_get_value(
                         config_parser, section, key
                     )
             config_dict = config_dict[section]
+
+    print(config_dict)
 
     return config_dict, success
 
@@ -174,3 +178,8 @@ class BaseConfig(ABC):  # Abstract class
             str: Name of the parent class
         """
         return self._baseconfig_parent_name
+
+
+if __name__ == "__main__":
+    read_config_as_dict()
+    read_config_as_dict(section="CerebrA")
