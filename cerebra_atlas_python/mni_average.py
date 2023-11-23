@@ -56,7 +56,7 @@ class MNIAverage(BaseConfig):
             "fs_subjects_dir": os.getenv("SUBJECTS_DIR"),
             "bem_conductivity": (0.33, 0.0042, 0.33),
             "bem_ico": 4,
-            "default_data_path": op.dirname(__file__) + "/cerebra_data",
+            "default_data_path": op.dirname(__file__) + "/cerebra_data/MNIAverage",
         }
 
         super().__init__(
@@ -291,6 +291,4 @@ class MNIAverage(BaseConfig):
 
 
 if __name__ == "__main__":
-    # NOTE: does not work because of imports
-    print()
     mniAverage = MNIAverage(bem_ico=4)

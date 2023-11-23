@@ -225,7 +225,7 @@ class CerebrA(BaseConfig):
         self.default_data_path: str = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
-            "default_data_path": op.dirname(__file__) + "/cerebra_data",
+            "default_data_path": op.dirname(__file__) + "/cerebra_data/cerebra",
         }
 
         super().__init__(
@@ -283,7 +283,7 @@ class CerebrA(BaseConfig):
         if not op.exists(cerebra_sparse_path):
             logging.info("Generating sparse representation of Cerebra volume data...")
             self.volume_data_sparse = {
-                region_id: self.get_points_from_region_id(region_id)
+                region_id: self.calculate_points_from_region_id(region_id)
                 for region_id in self.region_ids
             }
             with open(cerebra_sparse_path, "wb") as handle:
@@ -343,7 +343,7 @@ class CerebrA(BaseConfig):
     # Functions
     def get_region_id_from_point(self, point):
         region_id = self.cerebra_volume[point[0], point[1], point[2]]
-        return int(region_id)  # Can be 0 and 103
+        return int(region_id)  # Can be get_points_from_region_id0 and 103
 
     def get_region_data_from_region_id(self, region_id):
         region_data = self.label_details[self.label_details["CerebrA ID"] == region_id]
@@ -374,6 +374,11 @@ class CerebrA(BaseConfig):
         region_id = self.get_region_id_from_point(point)
         region_name = self.get_region_name_from_region_id(region_id)
         return region_name
+
+    # Find points for each region. Should only be called once per region
+    # Then, a sparse representation of the region data is stored/loaded as a .npy file
+    def calculate_points_from_region_id(self, region_id):
+        return np.array(np.where(self.cerebra_volume == region_id)).T
 
     def get_points_from_region_id(self, region_id):
         return self.volume_data_sparse[region_id]
