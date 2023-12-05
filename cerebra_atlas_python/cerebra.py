@@ -242,6 +242,7 @@ class CerebrA(BaseConfig):
         label_details (pd.DataFrame): Dataframe containing label details for brain regions.
         region_ids (np.ndarray): Sorted array of unique region IDs in label_details.
         volume_data_sparse (Dict[int, np.ndarray]): Sparse representation of the volume data.
+
     """
 
     def __init__(
@@ -253,9 +254,11 @@ class CerebrA(BaseConfig):
     ):
         self.cerebra_output_path: str = None
         self.default_data_path: str = None
+        self.remove_empty_from_src_space: bool = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
             "default_data_path": op.dirname(__file__) + "/cerebra_data/cerebra",
+            "remove_empty_from_src_space": True,
         }
 
         super().__init__(
@@ -328,6 +331,9 @@ class CerebrA(BaseConfig):
         self.cortical_color = "#9EC8B9"
         self.non_cortical_color = "#1B4242"
 
+        if self.remove_empty_from_src_space:
+            self.mni_average.vol_src = self.modify_src_space(self.mni_average.vol_src)
+
     @property
     def bem_names(self):
         return self.mni_average.bem_names
@@ -384,6 +390,25 @@ class CerebrA(BaseConfig):
             src_space_pc = self.get_src_space_pc()
             self.src_space_volume = point_cloud_to_voxel(src_space_pc, vox_value=1)
         return self.src_space_volume
+
+    def modify_src_space(self, src_space):
+        new_inuse = []
+        for i, is_inuse in enumerate(src_space[0]["inuse"]):
+            # Do not modify not in use
+            if not is_inuse:
+                new_inuse.append(0)
+                continue
+            # If used, check whether it falls outside the brain
+            pt = self.src_vertex_index_to_ras_voxel(i)
+            region_id = self.get_region_id_from_point(pt)
+            if region_id != 0:
+                new_inuse.append(1)
+            else:
+                new_inuse.append(0)
+        src_space[0]["inuse"] = np.array(new_inuse)
+        src_space[0]["vertno"] = np.where(src_space[0]["inuse"])[0]
+
+        return src_space
 
     # Functions
     def get_region_id_from_point(self, point):

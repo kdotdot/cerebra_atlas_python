@@ -162,6 +162,7 @@ class MNIAverage(BaseConfig):
                 subject="MNIAverage",
                 subjects_dir=self.fs_subjects_dir,
                 surface=surface,
+                mindist=0,
                 add_interpolator=False,  # Just for speed!
             )
             self.vol_src.save(self._vol_src_path, overwrite=True, verbose=True)
