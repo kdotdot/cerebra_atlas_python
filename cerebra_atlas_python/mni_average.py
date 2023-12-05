@@ -75,6 +75,7 @@ class MNIAverage(BaseConfig):
 
         # self.default_data_path =
 
+        # TODO: Data priority: Default data path -> Then freesurfer dir -> Then error
         if not self.fs_subjects_dir:
             logging.info(
                 "Freesurfer subjects folder not found, using default data path"
@@ -221,9 +222,9 @@ class MNIAverage(BaseConfig):
             np.ndarray: A numpy array containing three float values
             representing the RAS coordinates of the given index.
         """
-        assert isinstance(idx, int) or isinstance(
-            idx, np.ndarray
-        ), "vertex_index_to_mri argument idx should be of type int or np.ndarray"
+        assert (
+            isinstance(idx, int) or isinstance(idx, np.ndarray) or isinstance(idx, list)
+        ), f"vertex_index_to_mri argument idx should be of type int or np.ndarray, not type(idx)={type(idx)}"
         if isinstance(idx, int):
             return self.src["rr"][idx, :]
         else:

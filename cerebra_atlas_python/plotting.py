@@ -1,12 +1,13 @@
 """Plotting related utils"""
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import numpy as np
 import nibabel as nib
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from matplotlib.colors import ListedColormap
-from cerebra_atlas_python.utils import slice_volume
+from cerebra_atlas_python.utils import slice_volume, rgb_to_hex_str
+
 
 ori_slice = dict(
     P="Coronal", A="Coronal", I="Axial", S="Axial", L="Sagittal", R="Saggital"
@@ -152,7 +153,7 @@ def get_2d_fig_ax(
     return fig, ax
 
 
-def remove_ax(ax: plt.Axes) -> None:
+def remove_ax(ax: plt.Axes, keep_names: Optional[List[str]] = None) -> None:
     """
     Hides all the elements of a given matplotlib axis.
 
@@ -161,13 +162,31 @@ def remove_ax(ax: plt.Axes) -> None:
 
     Parameters:
     ax (Axes): A matplotlib axes object on which the elements are to be hidden.
+    keep_names (Optional[List[str]]): Specifies which spines to keep visible.
+        options are "top", "right", "bottom", and "left". Defaults to None.
     """
-    ax.xaxis.set_visible(False)
-    ax.yaxis.set_visible(False)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    ax.spines["left"].set_visible(False)
+    all_names: [str] = ["top", "right", "bottom", "left"]
+    if keep_names is None:
+        keep_names = []
+    else:
+        # Assert all keep names are valid
+        if not all([name in all_names for name in keep_names]):
+            raise ValueError(
+                f"Invalid keep_names: {keep_names}. Must be a subset of {all_names}"
+            )
+    ax.set_yticks([])
+    ax.set_xticks([])
+
+    if "top" not in keep_names and "bottom" not in keep_names:
+        ax.set_xticklabels([])
+
+    if "right" not in keep_names and "left" not in keep_names:
+        ax.set_yticklabels([])
+    for name in all_names:
+        if name in keep_names:
+            continue
+        ax.spines[name].set_visible(False)
+    return ax
 
 
 def get_orthoview_axes(
@@ -308,6 +327,11 @@ def get_cmap_colors(cmap_name="gist_rainbow", n_classes=103):
     return colors[:, :3]
 
 
+def get_cmap_colors_hex(**kwargs):
+    colors = get_cmap_colors()
+    return [rgb_to_hex_str(c) for c in colors]
+
+
 def get_cmap():
     newcmp = ListedColormap(get_cmap_colors())
     return newcmp
@@ -336,6 +360,7 @@ def plot_brain_slice_2d(
     ax=None,
     pt=None,
     pt_text=None,
+    plot_pt_lines=True,
     slice_figsize=(6, 6),
     n_layers: str or int = "max",
     n_layers_max=100,
@@ -344,7 +369,7 @@ def plot_brain_slice_2d(
     add_top_left_info=True,
     add_coordinate_frame_info=True,
     add_ax_labels=True,
-    add_ax_ticks=False,
+    add_ax_ticks=True,
 ):
     x_label, y_label = get_ax_labels(axis)
 
@@ -406,21 +431,39 @@ def plot_brain_slice_2d(
             c="white" if plot_empty else "black",
         ).set_fontsize(10)
 
+    # NOTE: Having repeated values for scatterplots
+    # (i.e. [x=1,y=1,c='white',x=1,y=1,c='red'...]) increase processing time
+    # Be careful when creating new scatterplots that overlap
+
+    xs_ys, cs, alphas = None, None, None
+
+    # PLOT VOLUMES
+    # NOTE:FIRST PROCESSED ARE SHOWN ON UPPER LAYER
+    # (FIRST SRC VOL THEN REGIONS THEN BEM...)
+
+    # BEM SURFACES
+    if bem_volume is not None:
+        bem_slice = slice_volume(
+            bem_volume, fixed_value=fixed_value, axis=axis, n_layers=30
+        )
+        colors = get_cmap_colors("hsv", bem_volume.max())
+        colors[-1] = [1, 0, 0]
+        new_xs_ys, new_cs, new_alphas = project_volume_2d(
+            bem_slice,
+            axis=axis,
+            colors=colors,
+            alpha_values=np.array([0, 0.10, 0.10, 1]),
+        )
+        xs_ys, cs, alphas = merge_points_optimized(
+            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
+        )
+
     if cmap_name != "default" or cerebra_volume.max() > 103:
         cmap_name = "gray" if cmap_name == "default" else cmap_name
         colors = get_cmap_colors(cmap_name, cerebra_volume.max())
     else:
         colors = get_cmap_colors()
 
-    # NOTE: Having repeated values for scatterplots
-    # (i.e. [x=1,y=1,c='white',x=1,y=1,c='red'...]) increase processing time
-    # Be careful when creating new scatterplots that overlap
-
-    # PLOT VOLUMES
-    # NOTE:FIRST PROCESSED ARE SHOWN ON UPPER LAYER
-    # (FIRST SRC VOL THEN REGIONS THEN BEM...)
-
-    xs_ys, cs, alphas = None, None, None
     # SRC VOLUME
     if src_volume is not None:
         src_slice = slice_volume(
@@ -430,7 +473,7 @@ def plot_brain_slice_2d(
         new_xs_ys, new_cs, new_alphas = project_volume_2d(
             src_slice,
             axis=axis,
-            colors=get_cmap_colors("hsv", src_volume.max()),
+            colors=np.array([[0, 0, 0], [1, 0, 0]]),
         )
 
         xs_ys, cs, alphas = merge_points_optimized(
@@ -471,25 +514,11 @@ def plot_brain_slice_2d(
             [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
         )
 
-    # BEM SURFACES
-    if bem_volume is not None:
-        bem_slice = slice_volume(
-            bem_volume, fixed_value=fixed_value, axis=axis, n_layers=10
-        )
-        new_xs_ys, new_cs, new_alphas = project_volume_2d(
-            bem_slice,
-            axis=axis,
-            colors=get_cmap_colors("hsv", bem_volume.max()),
-            alpha_values=np.array([0, 0.10, 0.10, 0.05]),
-        )
-        xs_ys, cs, alphas = merge_points_optimized(
-            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
-        )
-
     # Plot point
     if pt is not None:
-        ax.vlines(pt[x_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
-        ax.hlines(pt[y_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
+        if plot_pt_lines:
+            ax.vlines(pt[x_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
+            ax.hlines(pt[y_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
 
         ax.scatter(pt[x_label], pt[y_label])
 
@@ -511,8 +540,9 @@ def plot_brain_slice_2d(
             c="red",
         )
 
-    xs, ys = xs_ys.T
-    ax.scatter(xs, ys, c=cs, alpha=alphas, s=s)
+    if xs_ys is not None:
+        xs, ys = xs_ys.T
+        ax.scatter(xs, ys, c=cs, alpha=alphas, s=s)
 
     if plot_planes:
         ax.hlines(
@@ -606,15 +636,24 @@ def get_3d_fig_ax():
     ax.set_ylabel("Y (A)")
     ax.set_zlabel("Z (S)")
 
-    ax.set_xlim([0, 256])
-    ax.set_ylim([0, 256])
-    ax.set_zlim([0, 256])
+    # ax.set_xlim([0, 256])
+    # ax.set_ylim([0, 256])
+    # ax.set_zlim([0, 256])
 
     return fig, ax
 
 
 def plot_volume_3d(
-    volume, plot_whitematter=False, region_pts=None, density=8, alpha=0.1, ax=None
+    volume,
+    plot_whitematter=False,
+    region_pts=None,
+    density=8,
+    alpha=0.1,
+    ax=None,
+    bem_surfaces=None,
+    src_space_pc=None,
+    plot_regions=True,
+    volume_colors=None,
 ):
     fig = None
     if ax is None:
@@ -627,32 +666,60 @@ def plot_volume_3d(
 
     cmap_colors = get_cmap_colors()
 
-    for x in range(0, 256, density):
-        for y in range(0, 256, density):
-            for z in range(0, 256, density):
-                if volume[x, y, z] != 0:
-                    if volume[x, y, z] == 103 and not plot_whitematter:
-                        continue
-                    xs.append(x)
-                    ys.append(y)
-                    zs.append(z)
-                    if region_pts is None:
-                        cs.append(cmap_colors[int(volume[x, y, z])])
-                    else:
-                        cs.append((1, 1, 1))
-
-    ax.scatter(xs, ys, zs, c=cs, alpha=0.01 if region_pts is not None else alpha)
-
     if region_pts is not None:
         xs = []
         ys = []
         zs = []
         cs = []
+        print(region_pts)
+        first_pt = region_pts[0]
+        val = int(volume[first_pt[0], first_pt[1], first_pt[2]])
+        # Not all points are plotted for performance reasons
+        # The density parameter specifies the gap between points
         for i in range(0, len(region_pts), density):
             xs.append(region_pts.T[0][i])
             ys.append(region_pts.T[1][i])
             zs.append(region_pts.T[2][i])
         # xs, ys, zs = region_pts.T[0], region_pts.T[1], region_pts.T[2]
-        ax.scatter(xs, ys, zs, c="red", alpha=alpha)
+        ax.scatter(xs, ys, zs, c=cmap_colors[val], alpha=alpha)
+
+    if plot_regions:
+        xs = []
+        ys = []
+        zs = []
+        cs = []
+        for x in range(0, 256, density):
+            for y in range(0, 256, density):
+                for z in range(0, 256, density):
+                    if volume[x, y, z] != 0:
+                        if volume[x, y, z] == 103 and not plot_whitematter:
+                            continue
+                        val = int(volume[x, y, z])
+                        cs.append(cmap_colors[val])
+                        xs.append(x)
+                        ys.append(y)
+                        zs.append(z)
+
+        ax.scatter(xs, ys, zs, c=cs, alpha=0.1 if region_pts is not None else alpha)
+
+    if bem_surfaces is not None:
+        xs = bem_surfaces[2].T[0]
+        ys = bem_surfaces[2].T[1]
+        zs = bem_surfaces[2].T[2]
+        ax.scatter(xs, ys, zs, c="red", alpha=alpha, s=0.5)
+
+        xs = bem_surfaces[1].T[0]
+        ys = bem_surfaces[1].T[1]
+        zs = bem_surfaces[1].T[2]
+        ax.scatter(xs, ys, zs, c="gray", alpha=0.1, s=0.2)
+
+        xs = bem_surfaces[0].T[0]
+        ys = bem_surfaces[0].T[1]
+        zs = bem_surfaces[0].T[2]
+        ax.scatter(xs, ys, zs, c="gray", alpha=0.2, s=0.1)
+
+    if src_space_pc is not None:
+        xs, ys, zs = src_space_pc.T
+        ax.scatter(xs, ys, zs, c="red", alpha=alpha, s=0.5)
 
     return fig, ax

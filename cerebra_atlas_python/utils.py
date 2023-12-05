@@ -180,5 +180,18 @@ def slice_volume(
         raise ValueError(f"Invalid axis: {axis}")
 
 
+def rgb_to_hex_str(color_rgb: np.ndarray) -> str:
+    """Transforms (r,g,b) (0,1) array into hex color string
+
+    Args:
+        color_rgb (np.ndarray): input array
+
+    Returns:
+        str: transformed hex string
+    """
+    color_rgb = [int(c * 255) for c in color_rgb]
+    return f"#{color_rgb[0]:02x}{color_rgb[1]:02x}{color_rgb[2]:02x}"
+
+
 if __name__ == "__main__":
     pass

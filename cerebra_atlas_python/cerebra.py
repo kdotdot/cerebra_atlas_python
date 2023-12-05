@@ -17,7 +17,12 @@ from cerebra_atlas_python.utils import (
     move_volume_from_lia_to_ras,
     find_closest_point,
 )
-from cerebra_atlas_python.plotting import plot_volume_3d, orthoview, plot_brain_slice_2d
+from cerebra_atlas_python.plotting import (
+    plot_volume_3d,
+    orthoview,
+    plot_brain_slice_2d,
+    get_cmap_colors_hex,
+)
 
 
 def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
@@ -39,20 +44,45 @@ def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
 
     # Change id column from string to int
     df["CerebrA ID"] = pd.to_numeric(df["CerebrA ID"])
+    df["CerebrA ID"] = df["CerebrA ID"].astype("uint8")
 
     # Copy df and append
     df = pd.concat([df, df])
     df.reset_index(inplace=True, drop=True)
 
     # Modify left side labels
-    df.loc["51":, "CerebrA ID"] = df.loc["52":, "CerebrA ID"] + 51
+    df.loc["51":, "CerebrA ID"] = df.loc["51":, "CerebrA ID"] + 51
+
+    # df["Mindboggle ID"] = df["Mindboggle ID"].astype("uint16")
 
     # Modify names to include hemisphere
-    df.loc["51":, "Label Name"] = "Left " + df.loc["52":, "Label Name"]
-    df.loc[:"51", "Label Name"] = "Right " + df.loc[:"52", "Label Name"]
+    df["hemisphere"] = ""
+    # df.loc[:, "hemisphere"] = 12
+    df.loc["51":, "hemisphere"] = "Left"
+    df.loc[:"50", "hemisphere"] = "Right"
+
+    # Label cortical regions
+    df["cortical"] = df["Mindboggle ID"] > 1000
+
+    # Adjust Mindboggle ids
+    # (see https://mindboggle.readthedocs.io/en/latest/labels.html)
+    mask = df["cortical"] & (df["hemisphere"] == "Left")
+    df.loc[mask, "Mindboggle ID"] = df.loc[mask, "Mindboggle ID"] - 1000
 
     # Add white matter to label details
-    df.loc[len(df.index)] = [0, "White matter", 103]
+    df.loc[len(df.index)] = [0, "White matter", 103, "", False]
+
+    # Add 'empty' to label details
+    df.loc[len(df.index)] = [0, "Empty", 0, "", False]
+
+    df.sort_values(by=["CerebrA ID"], inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
+    # Add hemispheres
+
+    # Add colors
+    # Order by CerebrA ID then get colors
+    df["color"] = get_cmap_colors_hex()
 
     return df
 
@@ -294,7 +324,22 @@ class CerebrA(BaseConfig):
             with open(cerebra_sparse_path, "rb") as handle:
                 self.volume_data_sparse = pickle.load(handle)
 
+        # Constant attributes
+        self.cortical_color = "#9EC8B9"
+        self.non_cortical_color = "#1B4242"
+
+    @property
+    def bem_names(self):
+        return self.mni_average.bem_names
+
     # COORDINATE FRAME TRANSFORMATIONS
+
+    def src_vertex_index_to_ras_voxel(self, vert_id: np.ndarray) -> np.ndarray:
+        pts = self.mni_average.src_vertex_index_to_mri(vert_id)
+        pts = self.mni_average.mri_to_ras_nzo(pts)
+        #  RAS (non-zero origin) -> RAS
+        return np.squeeze(self.center_ras(pts)).astype(int)
+
     def center_ras(self, pts: np.ndarray) -> np.ndarray:
         #  RAS (non-zero origin) -> RAS
         return mne.transforms.apply_trans(self.affine, pts)
@@ -342,6 +387,7 @@ class CerebrA(BaseConfig):
 
     # Functions
     def get_region_id_from_point(self, point):
+        point = point.astype(int)
         region_id = self.cerebra_volume[point[0], point[1], point[2]]
         return int(region_id)  # Can be get_points_from_region_id0 and 103
 
@@ -382,6 +428,12 @@ class CerebrA(BaseConfig):
 
     def get_points_from_region_id(self, region_id):
         return self.volume_data_sparse[region_id]
+
+    def get_n_points_from_region_id(self, region_id):
+        if region_id == 0:
+            return (self.cerebra_volume == 0).sum()
+        else:
+            return len(self.get_points_from_region_id(region_id))
 
     # Given a brain region name, get an array of points that
     # make up said region
@@ -437,11 +489,24 @@ class CerebrA(BaseConfig):
         return self.find_region_centroid_from_id(region_id)
 
     def find_region_centroid_from_id(self, region_id):
-        return np.round(self.get_points_from_region_id(region_id).mean(axis=0)).astype(
-            np.uint8
-        )
+        centroid = np.round(
+            self.get_points_from_region_id(region_id).mean(axis=0)
+        ).astype(np.uint8)
 
-    def prepare_plot_data(
+        if self.get_region_id_from_point(centroid) == 103:
+            success, pt, closest_region_id = self.get_closest_region_to_whitematter(
+                centroid
+            )
+            if not success:
+                logging.error(
+                    "Unable to find closest region to whitematter from region centroid"
+                )
+            elif closest_region_id != region_id:
+                logging.warning("Region centroid is outside of region?")
+            centroid = pt
+        return centroid
+
+    def prepare_plot_data_2d(
         self,
         plot_src_space: bool = False,
         plot_bem_surfaces: bool = False,
@@ -484,7 +549,7 @@ class CerebrA(BaseConfig):
 
         return src_volume, bem_volume, region_centroid, pt_dist, pt_text
 
-    def plot_data(
+    def plot_data_2d(
         self,
         plot_type="orthoview",
         plot_src_space: bool = False,
@@ -499,7 +564,7 @@ class CerebrA(BaseConfig):
             region_centroid,
             pt_dist,
             pt_text,
-        ) = self.prepare_plot_data(
+        ) = self.prepare_plot_data_2d(
             plot_src_space,
             plot_bem_surfaces,
             plot_distance_to_inner_skull,
@@ -542,7 +607,7 @@ class CerebrA(BaseConfig):
         self,
         **kwargs,
     ):
-        fig, axs = self.plot_data(plot_type="orthoview", **kwargs)
+        fig, axs = self.plot_data_2d(plot_type="orthoview", **kwargs)
         if "pt" in kwargs and kwargs["pt"] is not None:
             reg_id = self.get_region_id_from_point(kwargs["pt"])
             reg_name = self.get_region_name_from_region_id(reg_id)
@@ -550,11 +615,11 @@ class CerebrA(BaseConfig):
 
         return fig, axs
 
-    def plot(
+    def plot_2d(
         self,
         **kwargs,
     ):
-        fig, axs = self.plot_data(plot_type="single", **kwargs)
+        fig, axs = self.plot_data_2d(plot_type="single", **kwargs)
         if "pt" in kwargs and kwargs["pt"] is not None:
             reg_id = self.get_region_id_from_point(kwargs["pt"])
             reg_name = self.get_region_name_from_region_id(reg_id)
@@ -562,24 +627,52 @@ class CerebrA(BaseConfig):
 
         return fig, axs
 
-    def plot_3d(self, alpha=1):
-        return plot_volume_3d(self.cerebra_volume, density=6, alpha=alpha)
-
-    def plot_region_3d(
+    def plot_3d(
         self,
-        region_id,
+        alpha=1,
+        plot_bem=False,
+        plot_src_space: bool = False,
+        plot_cortical: bool = False,
+        plot_highlighted_region: int = None,
+        **kwargs,
     ):
-        pts = self.get_points_from_region_id(region_id)
-        plot_volume_3d(self.cerebra_volume, region_pts=pts, density=6)
+        bem_surfaces = None
+        if plot_bem:
+            bem_surfaces = self.get_bem_surfaces()
 
-    def plot_whitematter_3d(self, **kwargs):
-        pts = self.get_points_from_region_id(103)
-        fig, ax = plot_volume_3d(self.cerebra_volume, density=6, alpha=0.5)
-        _, ax = plot_volume_3d(
-            self.cerebra_volume, region_pts=pts, density=64, ax=ax, **kwargs
+        src_space_pc = None
+        if plot_src_space:
+            src_space_pc = self.get_src_space_pc()
+
+        volume_colors = None
+        if plot_cortical:
+            volume_colors = [
+                self.cortical_color if is_cortical else self.non_cortical_color
+                for is_cortical in self.label_details["cortical"]
+            ]
+
+        region_pts = None
+        if plot_highlighted_region is not None:
+            region_pts = self.get_points_from_region_id(plot_highlighted_region)
+
+        return plot_volume_3d(
+            self.cerebra_volume,
+            # density=6,
+            alpha=alpha,
+            bem_surfaces=bem_surfaces,
+            src_space_pc=src_space_pc,
+            volume_colors=volume_colors,
+            region_pts=region_pts,
+            **kwargs,
         )
 
 
 if __name__ == "__main__":
     setup_logging()
     cerebra = CerebrA()
+
+    IDX = 3
+    INDICES = [1, 2, 3]
+
+    cerebra.src_vertex_index_to_ras(IDX)
+    cerebra.src_vertex_index_to_ras(INDICES)
