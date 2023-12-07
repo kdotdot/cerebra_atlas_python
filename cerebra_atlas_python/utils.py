@@ -193,144 +193,91 @@ def rgb_to_hex_str(color_rgb: np.ndarray) -> str:
     return f"#{color_rgb[0]:02x}{color_rgb[1]:02x}{color_rgb[2]:02x}"
 
 
-# Modified _make_volume_source_space from https://github.com/mne-tools/mne-python/blob/maint/1.6/mne/source_space/_source_space.py#L1640-L1945
-def get_neighbors(source_space: mne.SourceSpaces) -> List[np.ndarray]:
-    return []
-    # pass in cerebra.mni_average.bem["surfs"][2]["rr"]
-    # must be converted to meters (is already)
+def merge_voxel_grids(grid1: np.ndarray, grid2: np.ndarray) -> np.ndarray:
+    """
+    Merges two voxel grids of the same size into one.
 
-    mins = np.min(rr, axis=0)
-    maxs = np.max(rr, axis=0)
+    The merge operation is a logical OR between the corresponding elements of the two voxel grids.
+    If a voxel is set in either of the grids (value of 1), it will be set in the resulting merged grid.
 
-    print(f"{source_space= } {mins= } {maxs= }")
+    Args:
+        grid1 (np.ndarray): The first voxel grid, expected to be of size [256, 256, 256].
+        grid2 (np.ndarray): The second voxel grid, expected to be of the same size as grid1.
 
-    grid = 5  # ?
+    Returns:
+        np.ndarray: The merged voxel grid of size [256, 256, 256].
 
-    maxn = np.array(
-        [
-            np.floor(np.abs(m) / grid) + 1 if m > 0 else -np.floor(np.abs(m) / grid) - 1
-            for m in maxs
-        ],
-        int,
-    )
-    minn = np.array(
-        [
-            np.floor(np.abs(m) / grid) + 1 if m > 0 else -np.floor(np.abs(m) / grid) - 1
-            for m in mins
-        ],
-        int,
-    )
-    npts = source_space["inuse"]
-    neigh = np.empty((26, npts), int)
-    neigh.fill(-1)
-    # Figure out each neighborhood:
-    # 6-neighborhood first
-    rr = source_space["rr"]
-    x, y, z = rr[2].ravel(), rr[1].ravel(), rr[0].ravel()
-    idxs = [
-        z > minn[2],
-        x < maxn[0],
-        y < maxn[1],
-        x > minn[0],
-        y > minn[1],
-        z < maxn[2],
+    Raises:
+        ValueError: If the input grids are not of the same shape.
+    """
+    if grid1.shape != grid2.shape:
+        raise ValueError("The two voxel grids must be of the same shape.")
+
+    # Perform logical OR operation to merge the voxel grids
+    merged_grid = grid1 + grid2
+
+    # Make sure total number of voxels stayed the same
+    # (No voxels overlap)
+    assert (merged_grid != 0).sum() == (grid1 != 0).sum() + (grid2 != 0).sum()
+
+    return merged_grid
+
+
+def point_cloud_to_voxel(
+    point_cloud: np.ndarray, dtype=np.uint8, vox_value: int = 1
+) -> np.ndarray:
+    """
+    Transforms a given point cloud into a voxel array.
+
+    This function takes an array representing a point cloud where each point is a 3D coordinate,
+    and converts it into a voxel representation with a specified size of [256, 256, 256].
+    Each point in the point cloud is mapped to a voxel in this 3D grid. The values in the point
+    cloud array should be in the range [0, 257) (RAS).
+
+    Args:
+        point_cloud (np.ndarray): A numpy array of shape [n_points, 3] representing the point cloud,
+                                  where n_points is the number of points in the cloud and each point
+                                  is a 3D coordinate.
+        dtype (type, optional): The data type to be used for the voxel grid. Defaults to np.uint8.
+        vox_value (int): set value for voxel grid
+
+    Returns:
+        np.ndarray: A voxel array of shape [256, 256, 256] representing the 3D grid, where each
+                    element is set to 1 if it corresponds to a point in the input array, otherwise 0.
+    """
+    # Initialize a voxel grid of the specified size filled with zeros
+    voxel_grid = np.zeros((256, 256, 256), dtype=dtype)
+
+    # Iterate through each point in the point cloud
+    for point in point_cloud:
+        # Check if the point is within the valid range
+        if all(0 <= coord < 256 for coord in point):
+            # Convert the floating point coordinates to integers
+            x, y, z = map(int, point)
+            # Set the corresponding voxel to 1
+            voxel_grid[x, y, z] = vox_value
+
+    return voxel_grid
+
+
+# Helper functions
+def get_standard_montage(kept_ch_names=None, kind="GSN-HydroCel-129", head_size=0.1025):
+    original_montage = mne.channels.make_standard_montage(kind, head_size=head_size)
+    new_montage = original_montage.copy()
+
+    ind = [
+        i
+        for (i, channel) in enumerate(original_montage.ch_names)
+        if channel
+        in (kept_ch_names if kept_ch_names is not None else original_montage.ch_names)
     ]
+    # Keep only the desired channels
+    new_montage.ch_names = [original_montage.ch_names[x] for x in ind]
+    kept_channel_info = [original_montage.dig[3:][x] for x in ind]
+    # Keep the first three rows as they are the fiducial points information
+    new_montage.dig = new_montage.dig[:3] + kept_channel_info  #
 
-    # Now make the initial grid
-    ns = tuple(maxn - minn + 1)
-    npts = np.prod(ns)
-    nrow = ns[0]
-    ncol = ns[1]
-    nplane = nrow * ncol
-    k = np.arange(npts)
-    offsets = [-nplane, 1, nrow, -1, -nrow, nplane]
-    for n, idx, offset in zip(neigh[:6], idxs, offsets):
-        n[idx] = k[idx] + offset
-
-    # Then the rest to complete the 26-neighborhood
-
-    # First the plane below
-    idx1 = z > minn[2]
-
-    idx2 = np.logical_and(idx1, x < maxn[0])
-    neigh[6, idx2] = k[idx2] + 1 - nplane
-    idx3 = np.logical_and(idx2, y < maxn[1])
-    neigh[7, idx3] = k[idx3] + 1 + nrow - nplane
-
-    idx2 = np.logical_and(idx1, y < maxn[1])
-    neigh[8, idx2] = k[idx2] + nrow - nplane
-
-    idx2 = np.logical_and(idx1, x > minn[0])
-    idx3 = np.logical_and(idx2, y < maxn[1])
-    neigh[9, idx3] = k[idx3] - 1 + nrow - nplane
-    neigh[10, idx2] = k[idx2] - 1 - nplane
-    idx3 = np.logical_and(idx2, y > minn[1])
-    neigh[11, idx3] = k[idx3] - 1 - nrow - nplane
-
-    idx2 = np.logical_and(idx1, y > minn[1])
-    neigh[12, idx2] = k[idx2] - nrow - nplane
-    idx3 = np.logical_and(idx2, x < maxn[0])
-    neigh[13, idx3] = k[idx3] + 1 - nrow - nplane
-
-    # Then the same plane
-    idx1 = np.logical_and(x < maxn[0], y < maxn[1])
-    neigh[14, idx1] = k[idx1] + 1 + nrow
-
-    idx1 = x > minn[0]
-    idx2 = np.logical_and(idx1, y < maxn[1])
-    neigh[15, idx2] = k[idx2] - 1 + nrow
-    idx2 = np.logical_and(idx1, y > minn[1])
-    neigh[16, idx2] = k[idx2] - 1 - nrow
-
-    idx1 = np.logical_and(y > minn[1], x < maxn[0])
-    neigh[17, idx1] = k[idx1] + 1 - nrow - nplane
-
-    # Finally one plane above
-    idx1 = z < maxn[2]
-
-    idx2 = np.logical_and(idx1, x < maxn[0])
-    neigh[18, idx2] = k[idx2] + 1 + nplane
-    idx3 = np.logical_and(idx2, y < maxn[1])
-    neigh[19, idx3] = k[idx3] + 1 + nrow + nplane
-
-    idx2 = np.logical_and(idx1, y < maxn[1])
-    neigh[20, idx2] = k[idx2] + nrow + nplane
-
-    idx2 = np.logical_and(idx1, x > minn[0])
-    idx3 = np.logical_and(idx2, y < maxn[1])
-    neigh[21, idx3] = k[idx3] - 1 + nrow + nplane
-    neigh[22, idx2] = k[idx2] - 1 + nplane
-    idx3 = np.logical_and(idx2, y > minn[1])
-    neigh[23, idx3] = k[idx3] - 1 - nrow + nplane
-
-    idx2 = np.logical_and(idx1, y > minn[1])
-    neigh[24, idx2] = k[idx2] - nrow + nplane
-    idx3 = np.logical_and(idx2, x < maxn[0])
-    neigh[25, idx3] = k[idx3] + 1 - nrow + nplane
-
-    # Omit unused vertices from the neighborhoods
-    logging.info("Adjusting the neighborhood info.")
-    r0 = minn * grid
-    voxel_size = grid * np.ones(3)
-    ras = np.eye(3)
-    neigh_orig = neigh
-    for sp in sps:
-        # remove non source-space points
-        neigh = neigh_orig.copy()
-        neigh[:, np.logical_not(sp["inuse"])] = -1
-        # remove these points from neigh
-        old_shape = neigh.shape
-        neigh = neigh.ravel()
-        checks = np.where(neigh >= 0)[0]
-        removes = np.logical_not(np.isin(checks, sp["vertno"]))
-        neigh[checks[removes]] = -1
-        neigh.shape = old_shape
-        neigh = neigh.T
-        # Thought we would need this, but C code keeps -1 vertices, so we will:
-        # neigh = [n[n >= 0] for n in enumerate(neigh[vertno])]
-        sp["neighbor_vert"] = neigh
-
-    return neigh
+    return new_montage
 
 
 if __name__ == "__main__":

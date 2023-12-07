@@ -10,53 +10,23 @@ import logging
 from typing import Tuple, Optional, Dict, List
 
 import mne
+import nibabel as nib
 import numpy as np
 
 from cerebra_atlas_python.config import BaseConfig
 
 
 class MNIAverage(BaseConfig):
-    """
-    A class for generating and managing MNIAverage Freesurfer surfaces in MNE-Python applications.
-
-    MNIAverage handles the creation and management of MNIAverage surfaces, including volume source spaces,
-    boundary element models (BEM), and fiducials. It provides functionality for converting indices to RAS coordinates
-    and generating source volumes and BEM surfaces.
-
-    Attributes:
-        mniaverage_output_path (str): Path to the output directory for MNIAverage data.
-        fs_subjects_dir (str): Directory path where Freesurfer subjects are stored.
-        bem_conductivity (tuple[float, float, float]): Conductivity values for the BEM model.
-        bem_ico (int): The icosahedron level for the BEM model.
-        download_data (bool): Flag to indicate whether data should be downloaded.
-        vol_src (mne.source_space.SourceSpaces): Volume source space object.
-        bem (mne.bem.ConductorModel): Boundary element model object.
-        fiducials (List[mne.io._digitization.DigPoint]): Fiducial points object.
-
-    Methods:
-        __init__: Constructor to initialize the MNIAverage class.
-        name: Property to get the class name with additional configuration details.
-        src: Property to access the source space.
-        _set_vol_src: Internal method to set up the volume source space.
-        _set_bem: Internal method to set up the boundary element model.
-        _set_fiducials: Internal method to set up fiducials.
-        index_to_ras: Convert an index in the source space to RAS coordinates.
-        get_src_volume: Get the source volume in a numpy array.
-        get_bem_surfaces: Get the surfaces of the boundary element model.
-    """
-
     def __init__(self, config_path=op.dirname(__file__) + "/config.ini", **kwargs):
         self.mniaverage_output_path: str = None
-        self.fs_subjects_dir: str = None
         self.bem_conductivity: Tuple[float, float, float] = None
         self.bem_ico: int = None
-        self.default_data_path: str = None
+        self.cerebra_data_path: str = None
         default_config = {
-            "mniaverage_output_path": "./generated/models",
-            "fs_subjects_dir": os.getenv("SUBJECTS_DIR"),
+            "mniaverage_output_path": "./mni_average",
             "bem_conductivity": (0.33, 0.0042, 0.33),
             "bem_ico": 4,
-            "default_data_path": op.dirname(__file__) + "/cerebra_data/MNIAverage",
+            "cerebra_data_path": op.dirname(__file__) + "/cerebra_data",
         }
 
         super().__init__(
@@ -65,7 +35,7 @@ class MNIAverage(BaseConfig):
             default_config=default_config,
             **kwargs,
         )
-        self.vol_src: Optional[mne.SourceSpaces] = None
+
         self.bem: Optional[mne.bem.ConductorModel] = None
         self.fiducials: Optional[List[mne.io._digitization.DigPoint]] = None
 
@@ -73,27 +43,20 @@ class MNIAverage(BaseConfig):
         if not op.exists(self.mniaverage_output_path):
             os.makedirs(self.mniaverage_output_path, exist_ok=True)
 
-        # self.default_data_path =
-
-        # TODO: Data priority: Default data path -> Then freesurfer dir -> Then error
-        if not self.fs_subjects_dir:
-            logging.info(
-                "Freesurfer subjects folder not found, using default data path"
-            )
-            self.fs_subjects_dir = self.default_data_path
-        elif "MNIAverage" not in os.listdir(self.fs_subjects_dir):
-            logging.info("MNIAverage subject data not found, using default data path")
-            self.fs_subjects_dir = self.default_data_path
-
-        else:
-            logging.info("Using data from SUBJECTS_DIR/MNIAverage")
+        # Input paths
+        self.subject_name = "icbm152"
+        self.subjects_dir = op.join(self.cerebra_data_path, "subjects")
+        self.subject_dir = op.join(self.subjects_dir, self.subject_name)
+        self.bem_folder_path = op.join(self.subject_dir, "bem")
+        self.fiducials_path = op.join(
+            self.bem_folder_path, f"{self.subject_name}-fiducials.fif"
+        )
+        self.wm_path = op.join(self.subject_dir, "mri/wm.mgz")
+        self.head_mri_t_path = op.join(self.subject_dir, "head_mri_t.fif")
+        self.info_path = op.join(self.cerebra_data_path, "info.fif")
 
         # Output paths
-        self._vol_src_path = op.join(
-            self.mniaverage_output_path,
-            f"mne.SourceSpaces{self.__class__.__name__}-v-src.fif",
-        )
-        self._bem_path = op.join(
+        self._bem_solution_path = op.join(
             self.mniaverage_output_path,
             f"{self.name}.fif",
         )
@@ -102,17 +65,14 @@ class MNIAverage(BaseConfig):
         self.bem_names = {1: "outer_skin", 2: "outer_skull", 3: "inner_skull"}
 
         self._set_bem()
-        self._set_vol_src()
         self._set_fiducials()
+        self._set_head_mri_t()
+        self._set_info()
 
     @property
     def bem_conductivity_string(self) -> str:
         """
         Property to get the BEM conductivity values as a formatted string.
-
-        This property formats the BEM conductivity values as a string, which is useful
-        for creating filenames or labels that include conductivity information.
-
         Returns:
             str: A string representing the BEM conductivity values, formatted as 'bem_value1_value2_value3'.
         """
@@ -120,94 +80,84 @@ class MNIAverage(BaseConfig):
 
     @property
     def name(self) -> str:
-        """
-        Property to get the enhanced name of the class instance.
-
-        This property extends the base name from the parent class with additional details
-        about BEM conductivity and icosahedron level, making it specific to the current configuration.
-
+        """Property to get the enhanced name of the class instance.
         Returns:
             str: Enhanced name of the class instance, including BEM conductivity and icosahedron level.
         """
         return f"{super().name}_{self.bem_conductivity_string}_ico_{self.bem_ico}"
 
-    @property
-    def src(self) -> Dict:
-        """
-        This property provides convenient access to the first source space object, assuming
-        the volume source space has been set.
+    # @property
+    # def src(self) -> Dict:
+    #     """
+    #     This property provides convenient access to the first source space object, assuming
+    #     the volume source space has been set.
 
-        Returns:
-            The first source space object, if available.
-        """
-        return self.vol_src[0]
+    #     Returns:
+    #         The first source space object, if available.
+    #     """
+    #     return self.vol_src[0]
 
-    # If vol src fif does not exist, create it, otherwise read it
-    def _set_vol_src(self):
-        """
-        Internal method to set up the volume source space.
+    # # If vol src fif does not exist, create it, otherwise read it
+    # # NOTE: UNUSED (remove)
+    # def _set_vol_src(self):
+    #     """
+    #     Internal method to set up the volume source space.
 
-        This method checks if the volume source space file exists. If not, it generates a new
-        volume source space and saves it to the specified path. If the file exists, it reads the
-        source space from the disk.
+    #     This method checks if the volume source space file exists. If not, it generates a new
+    #     volume source space and saves it to the specified path. If the file exists, it reads the
+    #     source space from the disk.
 
-        Uses the 'inner_skull.surf' surface from the Freesurfer 'MNIAverage' directory.
-        """
-        if not op.exists(self._vol_src_path):
-            logging.info("Generating volume source space...")
-            surface = op.join(
-                self.fs_subjects_dir, "MNIAverage", "bem", "inner_skull.surf"
-            )
-            self.vol_src = mne.setup_volume_source_space(
-                subject="MNIAverage",
-                subjects_dir=self.fs_subjects_dir,
-                surface=surface,
-                mindist=0,
-                add_interpolator=False,  # Just for speed!
-            )
-            self.vol_src.save(self._vol_src_path, overwrite=True, verbose=True)
-        else:
-            logging.info("Reading volume source space from disk")
-            self.vol_src = mne.read_source_spaces(self._vol_src_path, verbose=False)
+    #     Uses the 'inner_skull.surf' surface from the Freesurfer 'MNIAverage' directory.
+    #     """
+    #     if not op.exists(self._vol_src_path):
+    #         logging.info("Generating volume source space...")
+    #         surface = op.join(
+    #             self.fs_subjects_dir, "MNIAverage", "bem", "inner_skull.surf"
+    #         )
+    #         self.vol_src = mne.setup_volume_source_space(
+    #             subject="MNIAverage",
+    #             subjects_dir=self.fs_subjects_dir,
+    #             surface=surface,
+    #             mindist=0,
+    #             add_interpolator=False,  # Just for speed!
+    #         )
+    #         self.vol_src.save(self._vol_src_path, overwrite=True, verbose=True)
+    #     else:
+    #         logging.info("Reading volume source space from disk")
+    #         self.vol_src = mne.read_source_spaces(self._vol_src_path, verbose=False)
 
     # Same for BEM
     def _set_bem(self):
-        """
-        Internal method to set up the boundary element model (BEM).
-
-        This method checks if the BEM model file exists. If not, it generates a new BEM model
-        using the specified conductivity and icosahedron level, and saves it. If the file exists,
-        it reads the BEM model from the disk.
-
-        The BEM model is associated with the 'MNIAverage' subject in Freesurfer.
-        """
-        if not op.exists(self._bem_path):
+        """Internal method to set up the boundary element model (BEM)."""
+        if not op.exists(self._bem_solution_path):
             logging.info("Generating boundary element model... | %s", self.name)
             model = mne.make_bem_model(
-                subject="MNIAverage",
+                subject=self.subject_name,
                 ico=self.bem_ico,
                 conductivity=self.bem_conductivity,
-                subjects_dir=self.fs_subjects_dir,
+                subjects_dir=self.subjects_dir,
             )
             self.bem = mne.make_bem_solution(model)
             mne.write_bem_solution(
-                self._bem_path, self.bem, overwrite=True, verbose=True
+                self._bem_solution_path, self.bem, overwrite=True, verbose=True
             )
         else:
             logging.info("Loading boundary element model from disk | %s", self.name)
-            self.bem = mne.read_bem_solution(self._bem_path, verbose=False)
+            self.bem = mne.read_bem_solution(self._bem_solution_path, verbose=False)
 
     # Read manually aligned fiducials
     def _set_fiducials(self):
-        """
-        Internal method to read manually aligned fiducials.
+        """Internal method to read manually aligned fiducials."""
+        self.fiducials, _coordinate_frame = mne.io.read_fiducials(self.fiducials_path)
+        logging.debug("Fiducials coordinate frame: %s", _coordinate_frame)
 
-        Reads the fiducial points from a specified file in the Freesurfer 'MNIAverage' directory,
-        used for aligning the head model with the MEG/EEG sensors.
-        """
-        self.fiducials, _coordinate_frame = mne.io.read_fiducials(
-            f"{self.fs_subjects_dir}/MNIAverage/bem/MNIAverage-fiducials.fif"
-        )
+    def _set_head_mri_t(self):
+        """Internal method to read manually aligned fiducials."""
+        self.head_mri_t = mne.read_trans(self.head_mri_t_path)
+
+    def _set_info(self):
+        """Internal method to read manually aligned fiducials."""
+        self.info = mne.io.read_info(self.info_path)
 
     def src_vertex_index_to_mri(
         self, idx: Optional[int or np.ndarray] = None
@@ -240,6 +190,23 @@ class MNIAverage(BaseConfig):
             np.ndarray: Points converted to RAS (non-zero origin) coordinates.
         """
         return mne.transforms.apply_trans(self.src["mri_ras_t"], pts) * 1000
+
+    def ras_nzo_to_mri(self, pts: np.ndarray) -> np.ndarray:
+        """
+        # TODO: Update docstring
+        Converts points from MRI (surface RAS) coordinates to RAS coordinates with non-zero origin.
+        Args:
+            pts (np.ndarray): Points in MRI (surface RAS) coordinates.
+        Returns:
+            np.ndarray: Points converted to RAS (non-zero origin) coordinates.
+        """
+        # print(np.linalg.inv(self.src["mri_ras_t"]), pts)
+        return (
+            mne.transforms.apply_trans(
+                np.linalg.inv(self.src["mri_ras_t"]["trans"]), pts
+            )
+            / 1000
+        )
 
     def get_src_space_ras_nzo(
         self, transform: Optional[mne.Transform] = None

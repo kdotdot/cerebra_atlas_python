@@ -3,7 +3,6 @@ Cerebra...
 """
 import os
 import os.path as op
-import sys
 import logging
 import pickle
 import nibabel as nib
@@ -11,22 +10,20 @@ import numpy as np
 import pandas as pd
 import mne
 
-if os.getcwd() not in sys.path:
-    sys.path.append(os.getcwd())
-
-from cerebra_atlas_python.config import BaseConfig
-from cerebra_atlas_python.mni_average import MNIAverage
-from cerebra_atlas_python.utils import (
-    setup_logging,
-    move_volume_from_lia_to_ras,
-    find_closest_point,
-    get_neighbors,
-)
-from cerebra_atlas_python.plotting import (
+from .plotting import (
     plot_volume_3d,
     orthoview,
     plot_brain_slice_2d,
     get_cmap_colors_hex,
+)
+from .config import BaseConfig
+from .mni_average import MNIAverage
+from .utils import (
+    setup_logging,
+    move_volume_from_lia_to_ras,
+    find_closest_point,
+    merge_voxel_grids,
+    point_cloud_to_voxel,
 )
 
 
@@ -93,12 +90,7 @@ def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_label_details(path):
-    """
-    Reads a CSV file from the given path and preprocesses its contents using the preprocess_label_details function.
-
-    Args:
-        path (str): The file path of the CSV file to be read and processed.
-
+    """Reads a CSV file from the given path and preprocesses its contents using the preprocess_label_details function.
     Returns:
         pd.DataFrame: The preprocessed dataframe obtained from the CSV file.
     """
@@ -128,43 +120,6 @@ def get_volume_ras(path, dtype=np.uint8):
     return volume, affine
 
 
-def point_cloud_to_voxel(
-    point_cloud: np.ndarray, dtype=np.uint8, vox_value: int = 1
-) -> np.ndarray:
-    """
-    Transforms a given point cloud into a voxel array.
-
-    This function takes an array representing a point cloud where each point is a 3D coordinate,
-    and converts it into a voxel representation with a specified size of [256, 256, 256].
-    Each point in the point cloud is mapped to a voxel in this 3D grid. The values in the point
-    cloud array should be in the range [0, 257) (RAS).
-
-    Args:
-        point_cloud (np.ndarray): A numpy array of shape [n_points, 3] representing the point cloud,
-                                  where n_points is the number of points in the cloud and each point
-                                  is a 3D coordinate.
-        dtype (type, optional): The data type to be used for the voxel grid. Defaults to np.uint8.
-        vox_value (int): set value for voxel grid
-
-    Returns:
-        np.ndarray: A voxel array of shape [256, 256, 256] representing the 3D grid, where each
-                    element is set to 1 if it corresponds to a point in the input array, otherwise 0.
-    """
-    # Initialize a voxel grid of the specified size filled with zeros
-    voxel_grid = np.zeros((256, 256, 256), dtype=dtype)
-
-    # Iterate through each point in the point cloud
-    for point in point_cloud:
-        # Check if the point is within the valid range
-        if all(0 <= coord < 256 for coord in point):
-            # Convert the floating point coordinates to integers
-            x, y, z = map(int, point)
-            # Set the corresponding voxel to 1
-            voxel_grid[x, y, z] = vox_value
-
-    return voxel_grid
-
-
 def get_cerebra_volume(cerebra_mgz, wm_mgz):
     """
     Processes cerebra and white matter medical image volumes to integrate
@@ -188,36 +143,6 @@ def get_cerebra_volume(cerebra_mgz, wm_mgz):
     # Add whitematter to volume data
     cerebra_volume[(wm_volume != 0) & (cerebra_volume == 0)] = 103
     return cerebra_volume, cerebra_affine
-
-
-def merge_voxel_grids(grid1: np.ndarray, grid2: np.ndarray) -> np.ndarray:
-    """
-    Merges two voxel grids of the same size into one.
-
-    The merge operation is a logical OR between the corresponding elements of the two voxel grids.
-    If a voxel is set in either of the grids (value of 1), it will be set in the resulting merged grid.
-
-    Args:
-        grid1 (np.ndarray): The first voxel grid, expected to be of size [256, 256, 256].
-        grid2 (np.ndarray): The second voxel grid, expected to be of the same size as grid1.
-
-    Returns:
-        np.ndarray: The merged voxel grid of size [256, 256, 256].
-
-    Raises:
-        ValueError: If the input grids are not of the same shape.
-    """
-    if grid1.shape != grid2.shape:
-        raise ValueError("The two voxel grids must be of the same shape.")
-
-    # Perform logical OR operation to merge the voxel grids
-    merged_grid = grid1 + grid2
-
-    # Make sure total number of voxels stayed the same
-    # (No voxels overlap)
-    assert (merged_grid != 0).sum() == (grid1 != 0).sum() + (grid2 != 0).sum()
-
-    return merged_grid
 
 
 class CerebrA(BaseConfig):
@@ -307,16 +232,16 @@ class CerebrA(BaseConfig):
             self.default_data_path, "CerebrA_in_head.mgz"
         )
         # t1_path = op.join(self.mni_average.fs_subjects_dir, "MNIAverage/mri/T1.mgz")
-        wm_path = op.join(
-            self.mni_average.fs_subjects_dir, "MNIAverage/mri/wm.asegedit.mgz"
-        )
+
         self._src_space_path = op.join(
             self.cerebra_output_path,
             f"mne.SourceSpaces{self.__class__.__name__}-d-src.fif",
         )
 
         # Set volume
-        self.cerebra_volume, self.affine = get_cerebra_volume(cerebra_path, wm_path)
+        self.cerebra_volume, self.affine = get_cerebra_volume(
+            cerebra_path, self.mni_average.wm_path
+        )
 
         # Read labels
         label_details_path = op.join(self.default_data_path, "CerebrA_LabelDetails.csv")
@@ -366,9 +291,8 @@ class CerebrA(BaseConfig):
         #  RAS (non-zero origin) -> RAS
         return mne.transforms.apply_trans(self.affine, pts)
 
-    # NOTE: Unused. Remove (?)
     def inverse_center_ras(self, pts: np.ndarray) -> np.ndarray:
-        return np.round(mne.transforms.apply_trans(np.linalg.inv(self.affine), pts))
+        return mne.transforms.apply_trans(np.linalg.inv(self.affine), pts)
 
     # CENTERED MNI_AVERAGE POINTS
     # Returns array of length 3 of point clouds
@@ -446,9 +370,19 @@ class CerebrA(BaseConfig):
             combined_mask = np.logical_or(combined_mask, downsampled_whitematter_mask)
 
         self.src_space_labels = self.cerebra_volume[combined_mask]
-        self.src_space_points = np.indices([256, 256, 256])[:, combined_mask].T
-        normals = np.repeat([[0, 0, 1]], len(self.src_space_labels), axis=0)
-        pos = dict(rr=self.src_space_points, nn=normals)
+        self.src_space_points = self.mni_average.get_src_space_ras_nzo(
+            transform=self.affine
+        )
+        # self.src_space_points = np.indices([256, 256, 256])[:, combined_mask].T
+        normals = np.repeat([[0, 0, 1]], len(self.src_space_points), axis=0)
+        #
+        # TODO: Transform to original coordinate frame
+        rr = self.src_space_points.copy()
+
+        rr = self.inverse_center_ras(rr)
+        rr = self.mni_average.ras_nzo_to_mri(rr)
+
+        pos = dict(rr=rr, nn=normals)
         self.src_space = mne.setup_volume_source_space(pos=pos)
         # self.src_space.save(self._src_space_path, overwrite=True, verbose=True)
 
@@ -522,8 +456,6 @@ class CerebrA(BaseConfig):
         src_space[0]["vertno"] = np.where(src_space[0]["inuse"])[0]
         src_space[0]["nuse"] = len(src_space[0]["vertno"])
         src_space[0]["neighbor_vert"] = get_neighbors(src_space[0])
-
-        print(src_space[0]["nuse"])
 
         return src_space
 
@@ -735,7 +667,7 @@ class CerebrA(BaseConfig):
             fig, ax = plot_brain_slice_2d(
                 self.cerebra_volume,
                 self.affine,
-                src_space_pc=src_space_points,
+                src_space_points=src_space_points,
                 bem_volume=bem_volume,
                 pt_dist=pt_dist,
                 plot_highlighted_region=plot_highlighted_region,
