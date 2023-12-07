@@ -230,39 +230,33 @@ def merge_points_optimized(
     xs_ys_arr: Tuple[np.ndarray, np.ndarray],
     cs_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
     alphas_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
+    sizes_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
     default_color: Optional[list] = None,
     default_alpha: float = 1,
+    default_size: float = 1,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Merges two sets of points, colors, and alpha values while removing duplicates.
 
-    This function takes two sets of points, their corresponding colors and alpha values,
-    and merges them into single arrays. It ensures that points in the second set that are
-    duplicates of points in the first set are not included in the merged result. It also
-    handles default colors and alpha values for new points.
-
-    Parameters:
-    xs_ys_arr (Tuple[np.ndarray, np.ndarray]): Tuple of two arrays of points (x, y coordinates).
-    cs_arr (Tuple[Optional[np.ndarray], Optional[np.ndarray]]): Tuple of two color arrays.
-    alphas_arr (Tuple[Optional[np.ndarray], Optional[np.ndarray]]): Tuple of two alpha arrays.
-    default_color (Optional[list]): Default color for new points. Defaults to [0.2, 0.2, 0.2, 1].
-    default_alpha (float): Default alpha value for new points. Defaults to 1.
-
-    Returns:
-    Tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing merged arrays of points,
-                                               colors, and alpha values.
     """
-    default_color = default_color or [0.2, 0.2, 0.2, 1]
+    default_color = default_color or [
+        1,
+        0,
+        1,
+    ]
     xs_ys_keep, xs_ys_new = xs_ys_arr
     cs_keep, cs_new = cs_arr
     alphas_keep, alphas_new = alphas_arr
+    sizes_keep, sizes_new = sizes_arr
 
+    if alphas_new is None:
+        alphas_new = np.full(len(xs_ys_new), default_alpha)
+    if cs_new is None:
+        cs_new = np.tile(default_color, (len(xs_ys_new), 1))
+    if sizes_new is None:
+        sizes_new = np.full(len(xs_ys_new), default_size)
     if xs_ys_keep is None:
-        if alphas_new is None:
-            alphas_new = np.full(len(xs_ys_new), default_alpha)
-        if cs_new is None:
-            cs_new = np.full(len(cs_new), default_alpha)
-        return xs_ys_new, cs_new, alphas_new
+        return xs_ys_new, cs_new, alphas_new, sizes_new
 
     # Step 1: Use a hash-based approach to identify non-duplicate points
     keep_set = set(map(tuple, xs_ys_keep))
@@ -277,10 +271,15 @@ def merge_points_optimized(
     if cs_new is not None:
         cs_new = cs_new[non_dup_indices]  # Index the cs_new list
 
-    if alphas_new is None:
-        alphas_new = np.full(len(xs_ys_new), default_alpha)
+    if alphas_keep is None:
+        alphas_keep = np.full(len(xs_ys_new), default_alpha)
     if alphas_new is not None:
         alphas_new = alphas_new[non_dup_indices]  # Index the alphas_new list
+
+    if sizes_keep is None:
+        sizes_keep = np.full(len(xs_ys_new), default_size)
+    if sizes_new is not None:
+        sizes_new = sizes_new[non_dup_indices]  # Index the alphas_new list
 
     # Step 3: Merge arrays
     xs_ys = np.vstack((xs_ys_keep, non_dup_xs_ys_new))
@@ -290,12 +289,20 @@ def merge_points_optimized(
         if alphas_new is not None
         else alphas_keep
     )
+    sizes = (
+        np.concatenate((sizes_keep, sizes_new)) if sizes_new is not None else sizes_keep
+    )
 
-    return xs_ys, cs, alphas
+    return xs_ys, cs, alphas, sizes
 
 
 def project_volume_2d(
-    volume_slice, axis=0, colors=None, alpha_values=None, avoid_values=None
+    volume_slice,
+    axis=0,
+    colors=None,
+    alpha_values=None,
+    size_values=None,
+    avoid_values=None,
 ):
     avoid_values = avoid_values or [0]
     x_label, y_label = get_ax_labels(axis)
@@ -312,8 +319,9 @@ def project_volume_2d(
     new_values = volume_slice[tuple(xyzs)]
     cs = colors[new_values] if colors is not None else None
     alphas = alpha_values[new_values] if alpha_values is not None else None
+    sizes = size_values[new_values] if size_values is not None else None
 
-    return xs_ys.T, cs, alphas
+    return xs_ys.T, cs, alphas, sizes
 
 
 def get_cmap_colors(cmap_name="gist_rainbow", n_classes=103):
@@ -349,7 +357,7 @@ def plot_brain_slice_2d(
     plot_empty=False,
     plot_affine=False,
     plot_planes=False,
-    src_volume=None,
+    src_space_points=None,
     bem_volume=None,
     plot_highlighted_region=None,
     region_centroid=None,
@@ -435,11 +443,25 @@ def plot_brain_slice_2d(
     # (i.e. [x=1,y=1,c='white',x=1,y=1,c='red'...]) increase processing time
     # Be careful when creating new scatterplots that overlap
 
-    xs_ys, cs, alphas = None, None, None
+    xs_ys, cs, alphas, sizes = None, None, None, None
 
     # PLOT VOLUMES
     # NOTE:FIRST PROCESSED ARE SHOWN ON UPPER LAYER
     # (FIRST SRC VOL THEN REGIONS THEN BEM...)
+
+    # SRC SPACE
+    if src_space_points is not None:
+        mask = src_space_points.T[axis] > fixed_value
+
+        xs = src_space_points[mask].T[x_label]
+        ys = src_space_points[mask].T[y_label]
+        new_xs_ys = np.array([xs, ys]).T
+        new_cs = None
+        new_alphas = None
+        new_sizes = np.full(len(new_xs_ys), 1)
+        xs_ys, cs, alphas, sizes = merge_points_optimized(
+            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas], [sizes, new_sizes]
+        )
 
     # BEM SURFACES
     if bem_volume is not None:
@@ -448,14 +470,17 @@ def plot_brain_slice_2d(
         )
         colors = get_cmap_colors("hsv", bem_volume.max())
         colors[-1] = [1, 0, 0]
-        new_xs_ys, new_cs, new_alphas = project_volume_2d(
+        alpha_values = np.array([0, 0.10, 0.10, 1])
+        new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
             bem_slice,
             axis=axis,
             colors=colors,
-            alpha_values=np.array([0, 0.10, 0.10, 1]),
+            alpha_values=alpha_values,
+            size_values=np.repeat(1, len(alpha_values)),
         )
-        xs_ys, cs, alphas = merge_points_optimized(
-            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
+
+        xs_ys, cs, alphas, sizes = merge_points_optimized(
+            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas], [sizes, new_sizes]
         )
 
     if cmap_name != "default" or cerebra_volume.max() > 103:
@@ -463,22 +488,6 @@ def plot_brain_slice_2d(
         colors = get_cmap_colors(cmap_name, cerebra_volume.max())
     else:
         colors = get_cmap_colors()
-
-    # SRC VOLUME
-    if src_volume is not None:
-        src_slice = slice_volume(
-            src_volume, fixed_value=fixed_value, axis=axis, n_layers=40
-        )
-
-        new_xs_ys, new_cs, new_alphas = project_volume_2d(
-            src_slice,
-            axis=axis,
-            colors=np.array([[0, 0, 0], [1, 0, 0]]),
-        )
-
-        xs_ys, cs, alphas = merge_points_optimized(
-            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
-        )
 
     # REGIONS
     if plot_regions:
@@ -503,15 +512,16 @@ def plot_brain_slice_2d(
             alpha_values = np.ones(104) * 0.1
             alpha_values[plot_highlighted_region] = 1
 
-        new_xs_ys, new_cs, new_alphas = project_volume_2d(
+        new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
             cerebra_slice,
             axis=axis,
             colors=colors,
             avoid_values=avoid_values,
             alpha_values=alpha_values,
+            size_values=np.repeat(1, len(colors)),
         )
-        xs_ys, cs, alphas = merge_points_optimized(
-            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas]
+        xs_ys, cs, alphas, sizes = merge_points_optimized(
+            [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas], [sizes, new_sizes]
         )
 
     # Plot point
@@ -542,7 +552,7 @@ def plot_brain_slice_2d(
 
     if xs_ys is not None:
         xs, ys = xs_ys.T
-        ax.scatter(xs, ys, c=cs, alpha=alphas, s=s)
+        ax.scatter(xs, ys, c=cs, alpha=alphas, s=sizes)
 
     if plot_planes:
         ax.hlines(
@@ -671,7 +681,6 @@ def plot_volume_3d(
         ys = []
         zs = []
         cs = []
-        print(region_pts)
         first_pt = region_pts[0]
         val = int(volume[first_pt[0], first_pt[1], first_pt[2]])
         # Not all points are plotted for performance reasons

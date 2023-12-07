@@ -193,5 +193,145 @@ def rgb_to_hex_str(color_rgb: np.ndarray) -> str:
     return f"#{color_rgb[0]:02x}{color_rgb[1]:02x}{color_rgb[2]:02x}"
 
 
+# Modified _make_volume_source_space from https://github.com/mne-tools/mne-python/blob/maint/1.6/mne/source_space/_source_space.py#L1640-L1945
+def get_neighbors(source_space: mne.SourceSpaces) -> List[np.ndarray]:
+    return []
+    # pass in cerebra.mni_average.bem["surfs"][2]["rr"]
+    # must be converted to meters (is already)
+
+    mins = np.min(rr, axis=0)
+    maxs = np.max(rr, axis=0)
+
+    print(f"{source_space= } {mins= } {maxs= }")
+
+    grid = 5  # ?
+
+    maxn = np.array(
+        [
+            np.floor(np.abs(m) / grid) + 1 if m > 0 else -np.floor(np.abs(m) / grid) - 1
+            for m in maxs
+        ],
+        int,
+    )
+    minn = np.array(
+        [
+            np.floor(np.abs(m) / grid) + 1 if m > 0 else -np.floor(np.abs(m) / grid) - 1
+            for m in mins
+        ],
+        int,
+    )
+    npts = source_space["inuse"]
+    neigh = np.empty((26, npts), int)
+    neigh.fill(-1)
+    # Figure out each neighborhood:
+    # 6-neighborhood first
+    rr = source_space["rr"]
+    x, y, z = rr[2].ravel(), rr[1].ravel(), rr[0].ravel()
+    idxs = [
+        z > minn[2],
+        x < maxn[0],
+        y < maxn[1],
+        x > minn[0],
+        y > minn[1],
+        z < maxn[2],
+    ]
+
+    # Now make the initial grid
+    ns = tuple(maxn - minn + 1)
+    npts = np.prod(ns)
+    nrow = ns[0]
+    ncol = ns[1]
+    nplane = nrow * ncol
+    k = np.arange(npts)
+    offsets = [-nplane, 1, nrow, -1, -nrow, nplane]
+    for n, idx, offset in zip(neigh[:6], idxs, offsets):
+        n[idx] = k[idx] + offset
+
+    # Then the rest to complete the 26-neighborhood
+
+    # First the plane below
+    idx1 = z > minn[2]
+
+    idx2 = np.logical_and(idx1, x < maxn[0])
+    neigh[6, idx2] = k[idx2] + 1 - nplane
+    idx3 = np.logical_and(idx2, y < maxn[1])
+    neigh[7, idx3] = k[idx3] + 1 + nrow - nplane
+
+    idx2 = np.logical_and(idx1, y < maxn[1])
+    neigh[8, idx2] = k[idx2] + nrow - nplane
+
+    idx2 = np.logical_and(idx1, x > minn[0])
+    idx3 = np.logical_and(idx2, y < maxn[1])
+    neigh[9, idx3] = k[idx3] - 1 + nrow - nplane
+    neigh[10, idx2] = k[idx2] - 1 - nplane
+    idx3 = np.logical_and(idx2, y > minn[1])
+    neigh[11, idx3] = k[idx3] - 1 - nrow - nplane
+
+    idx2 = np.logical_and(idx1, y > minn[1])
+    neigh[12, idx2] = k[idx2] - nrow - nplane
+    idx3 = np.logical_and(idx2, x < maxn[0])
+    neigh[13, idx3] = k[idx3] + 1 - nrow - nplane
+
+    # Then the same plane
+    idx1 = np.logical_and(x < maxn[0], y < maxn[1])
+    neigh[14, idx1] = k[idx1] + 1 + nrow
+
+    idx1 = x > minn[0]
+    idx2 = np.logical_and(idx1, y < maxn[1])
+    neigh[15, idx2] = k[idx2] - 1 + nrow
+    idx2 = np.logical_and(idx1, y > minn[1])
+    neigh[16, idx2] = k[idx2] - 1 - nrow
+
+    idx1 = np.logical_and(y > minn[1], x < maxn[0])
+    neigh[17, idx1] = k[idx1] + 1 - nrow - nplane
+
+    # Finally one plane above
+    idx1 = z < maxn[2]
+
+    idx2 = np.logical_and(idx1, x < maxn[0])
+    neigh[18, idx2] = k[idx2] + 1 + nplane
+    idx3 = np.logical_and(idx2, y < maxn[1])
+    neigh[19, idx3] = k[idx3] + 1 + nrow + nplane
+
+    idx2 = np.logical_and(idx1, y < maxn[1])
+    neigh[20, idx2] = k[idx2] + nrow + nplane
+
+    idx2 = np.logical_and(idx1, x > minn[0])
+    idx3 = np.logical_and(idx2, y < maxn[1])
+    neigh[21, idx3] = k[idx3] - 1 + nrow + nplane
+    neigh[22, idx2] = k[idx2] - 1 + nplane
+    idx3 = np.logical_and(idx2, y > minn[1])
+    neigh[23, idx3] = k[idx3] - 1 - nrow + nplane
+
+    idx2 = np.logical_and(idx1, y > minn[1])
+    neigh[24, idx2] = k[idx2] - nrow + nplane
+    idx3 = np.logical_and(idx2, x < maxn[0])
+    neigh[25, idx3] = k[idx3] + 1 - nrow + nplane
+
+    # Omit unused vertices from the neighborhoods
+    logging.info("Adjusting the neighborhood info.")
+    r0 = minn * grid
+    voxel_size = grid * np.ones(3)
+    ras = np.eye(3)
+    neigh_orig = neigh
+    for sp in sps:
+        # remove non source-space points
+        neigh = neigh_orig.copy()
+        neigh[:, np.logical_not(sp["inuse"])] = -1
+        # remove these points from neigh
+        old_shape = neigh.shape
+        neigh = neigh.ravel()
+        checks = np.where(neigh >= 0)[0]
+        removes = np.logical_not(np.isin(checks, sp["vertno"]))
+        neigh[checks[removes]] = -1
+        neigh.shape = old_shape
+        neigh = neigh.T
+        # Thought we would need this, but C code keeps -1 vertices, so we will:
+        # neigh = [n[n >= 0] for n in enumerate(neigh[vertno])]
+        sp["neighbor_vert"] = neigh
+
+    return neigh
+
+
 if __name__ == "__main__":
     pass

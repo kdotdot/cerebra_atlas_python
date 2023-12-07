@@ -242,13 +242,13 @@ class MNIAverage(BaseConfig):
         return mne.transforms.apply_trans(self.src["mri_ras_t"], pts) * 1000
 
     def get_src_space_ras_nzo(
-        self, transform: Optional[mne.transforms.Transform] = None
+        self, transform: Optional[mne.Transform] = None
     ) -> np.ndarray:
         """
         Retrieves the source space coordinates in RAS with non-zero origin, with an optional transformation.
 
         Args:
-            transform (Optional[mne.transforms.Transform]): An optional transformation to
+            transform (Optional[mne.Transform]): An optional transformation to
             apply to the source space coordinates.
         Returns:
             np.ndarray: The source space coordinates in RAS (non-zero origin).
@@ -266,13 +266,13 @@ class MNIAverage(BaseConfig):
         return src_space
 
     def get_bem_surfaces_ras_nzo(
-        self, transform: Optional[mne.transforms.Transform] = None
+        self, transform: Optional[mne.Transform] = None
     ) -> np.ndarray:
         """
         Retrieves the BEM surfaces in RAS coordinates with non-zero origin, with an optional transformation.
 
         Args:
-            transform (Optional[mne.transforms.Transform]): An optional transformation to apply to the BEM surfaces.
+            transform (Optional[mne.Transform]): An optional transformation to apply to the BEM surfaces.
 
         Returns:
             np.ndarray: An array of BEM surfaces in RAS (non-zero origin) coordinates.

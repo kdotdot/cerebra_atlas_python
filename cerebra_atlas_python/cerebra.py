@@ -3,6 +3,7 @@ Cerebra...
 """
 import os
 import os.path as op
+import sys
 import logging
 import pickle
 import nibabel as nib
@@ -10,12 +11,16 @@ import numpy as np
 import pandas as pd
 import mne
 
+if os.getcwd() not in sys.path:
+    sys.path.append(os.getcwd())
+
 from cerebra_atlas_python.config import BaseConfig
 from cerebra_atlas_python.mni_average import MNIAverage
 from cerebra_atlas_python.utils import (
     setup_logging,
     move_volume_from_lia_to_ras,
     find_closest_point,
+    get_neighbors,
 )
 from cerebra_atlas_python.plotting import (
     plot_volume_3d,
@@ -254,11 +259,16 @@ class CerebrA(BaseConfig):
     ):
         self.cerebra_output_path: str = None
         self.default_data_path: str = None
-        self.remove_empty_from_src_space: bool = None
+        self.source_space_grid_size: int = None
+        self.source_space_include_wm: bool = None
+        self.source_space_include_non_cortical = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
             "default_data_path": op.dirname(__file__) + "/cerebra_data/cerebra",
             "remove_empty_from_src_space": True,
+            "source_space_grid_size": 3,  # mm
+            "source_space_include_wm": False,
+            "source_space_include_non_cortical": True,
         }
 
         super().__init__(
@@ -300,6 +310,10 @@ class CerebrA(BaseConfig):
         wm_path = op.join(
             self.mni_average.fs_subjects_dir, "MNIAverage/mri/wm.asegedit.mgz"
         )
+        self._src_space_path = op.join(
+            self.cerebra_output_path,
+            f"mne.SourceSpaces{self.__class__.__name__}-d-src.fif",
+        )
 
         # Set volume
         self.cerebra_volume, self.affine = get_cerebra_volume(cerebra_path, wm_path)
@@ -331,8 +345,10 @@ class CerebrA(BaseConfig):
         self.cortical_color = "#9EC8B9"
         self.non_cortical_color = "#1B4242"
 
-        if self.remove_empty_from_src_space:
-            self.mni_average.vol_src = self.modify_src_space(self.mni_average.vol_src)
+        self.src_space_labels = None
+        self.src_space = None
+        self.src_space_points = None
+        self._set_src_space()
 
     @property
     def bem_names(self):
@@ -377,13 +393,110 @@ class CerebrA(BaseConfig):
             self.bem_volume = bem_volume
         return self.bem_volume
 
+    # If vol src fif does not exist, create it, otherwise read it
+    def _set_src_space(self):
+        """Internal method to set up the volume source space."""
+        logging.debug("Generating discrete source space...")
+        # Create grid (downsample available volume)
+        size = self.source_space_grid_size
+        grid = np.zeros((256, 256, 256))
+        a = np.arange(size - 1, 256, size)
+        for x in a:
+            for y in a:
+                grid[x, y, a] = 1
+        grid_mask = grid.astype(bool)
+
+        # If include non-cortical keep all
+        if self.source_space_include_non_cortical:
+            not_zero_mask = self.cerebra_volume != self.get_region_id_from_region_name(
+                "Empty"
+            )
+            not_wm_mask = self.cerebra_volume != self.get_region_id_from_region_name(
+                "White matter"
+            )
+            downsampled_not_zero_mask = np.logical_and(grid_mask, not_zero_mask)
+            downsampled_not_wm_mask = np.logical_and(grid_mask, not_wm_mask)
+            # Combined mask is not zero and not wm
+            combined_mask = np.logical_and(
+                downsampled_not_zero_mask, downsampled_not_wm_mask
+            )
+
+        else:  # Keep only cortical:
+            # Get cortical region ids
+            cortical_ids = self.label_details[self.label_details["cortical"] == True][
+                "CerebrA ID"
+            ].values
+            combined_mask = np.zeros((256, 256, 256)).astype(bool)
+            for c_id in cortical_ids:
+                # Handle each region individually
+                region_mask = self.cerebra_volume == c_id
+                # Downsample based on grid
+                downsampled_region_mask = np.logical_and(grid_mask, region_mask)
+                # Add region to mask
+                combined_mask = np.logical_or(combined_mask, downsampled_region_mask)
+
+        # Add whitematter if needed
+        if self.source_space_include_wm:
+            whitematter_mask = (
+                self.cerebra_volume
+                == self.get_region_id_from_region_name("White matter")
+            )
+            # Downsample
+            downsampled_whitematter_mask = np.logical_and(grid_mask, whitematter_mask)
+            combined_mask = np.logical_or(combined_mask, downsampled_whitematter_mask)
+
+        self.src_space_labels = self.cerebra_volume[combined_mask]
+        self.src_space_points = np.indices([256, 256, 256])[:, combined_mask].T
+        normals = np.repeat([[0, 0, 1]], len(self.src_space_labels), axis=0)
+        pos = dict(rr=self.src_space_points, nn=normals)
+        self.src_space = mne.setup_volume_source_space(pos=pos)
+        # self.src_space.save(self._src_space_path, overwrite=True, verbose=True)
+
     # Returns point cloud
     def get_src_space_pc(self):
-        if self.src_space_pc is None:
-            self.src_space_pc = self.mni_average.get_src_space_ras_nzo(
-                transform=self.affine
+        return self.src_space_points
+
+    def get_vol_src_pc(
+        self,
+        include_non_cortical=True,
+        include_whitematter=False,
+        hemisphere=None,  # NOTE: include_regions could be added
+    ):
+        if hemisphere is not None and hemisphere not in ["Left", "Right"]:
+            raise ValueError(
+                f"Invalid hemisphere {hemisphere=} should be [Left, Right]"
             )
-        return self.src_space_pc
+
+        cortical = self.label_details[self.label_details["cortical"] == True]
+        non_cortical = self.label_details[self.label_details["cortical"] == False]
+        whitematter = self.label_details[
+            self.label_details["Label Name"] == "White matter"
+        ]
+        empty = self.label_details[self.label_details["Label Name"] == "Empty"]
+
+        if include_non_cortical:
+            all_regions = pd.concat([cortical, non_cortical, whitematter])
+        else:
+            all_regions = pd.concat([cortical, whitematter])
+
+        # Drop 'Empty' region -> id 0
+        all_regions.drop(empty["CerebrA ID"], inplace=True, errors="ignore")
+        # Remove whitematter if needed
+        if not include_whitematter:
+            all_regions.drop(whitematter["CerebrA ID"], inplace=True, errors="ignore")
+        # Remove hemisphere if needed
+        if hemisphere is not None:
+            drop_hemisphere = "Left" if hemisphere == "Right" else "Right"
+            all_regions.drop(
+                all_regions[all_regions["hemisphere"] == drop_hemisphere]["CerebrA ID"],
+                inplace=True,
+            )
+
+        ids = all_regions["CerebrA ID"].values
+
+        print(ids)
+
+        return ids
 
     def get_src_space_volume(self):
         if self.src_space_volume is None:
@@ -407,12 +520,16 @@ class CerebrA(BaseConfig):
                 new_inuse.append(0)
         src_space[0]["inuse"] = np.array(new_inuse)
         src_space[0]["vertno"] = np.where(src_space[0]["inuse"])[0]
+        src_space[0]["nuse"] = len(src_space[0]["vertno"])
+        src_space[0]["neighbor_vert"] = get_neighbors(src_space[0])
+
+        print(src_space[0]["nuse"])
 
         return src_space
 
     # Functions
     def get_region_id_from_point(self, point):
-        point = point.astype(int)
+        point = np.array(point).astype(int)
         region_id = self.cerebra_volume[point[0], point[1], point[2]]
         return int(region_id)  # Can be get_points_from_region_id0 and 103
 
@@ -423,11 +540,15 @@ class CerebrA(BaseConfig):
         return region_data
 
     def get_region_data_from_region_name(self, region_name):
-        region_id = self.get_region_id_from_region_name(region_name)
-        return self.get_region_data_from_region_id(region_id)
+        region_data = self.label_details[
+            self.label_details["Label Name"] == region_name
+        ]
+        return region_data
 
     def get_region_id_from_region_name(self, region_name):
-        region_data = self.get_region_data_from_region_name(region_name)
+        region_data = self.label_details[
+            self.label_details["Label Name"] == region_name
+        ]
         return region_data["CerebrA ID"].item()
 
     def get_region_name_from_region_id(self, region_id):
@@ -539,9 +660,9 @@ class CerebrA(BaseConfig):
         plot_highlighted_region: int = None,
         **kwargs,
     ):
-        src_volume = None
+        src_space_points = None
         if plot_src_space:
-            src_volume = self.get_src_space_volume()
+            src_space_points = self.src_space_points
 
         bem_volume = None
         if plot_bem_surfaces:
@@ -572,7 +693,7 @@ class CerebrA(BaseConfig):
             reg_name = self.get_region_name_from_point(kwargs["pt"])
             pt_text = f"{kwargs['pt']}\n{reg_name}"
 
-        return src_volume, bem_volume, region_centroid, pt_dist, pt_text
+        return src_space_points, bem_volume, region_centroid, pt_dist, pt_text
 
     def plot_data_2d(
         self,
@@ -584,7 +705,7 @@ class CerebrA(BaseConfig):
         **kwargs,
     ):
         (
-            src_volume,
+            src_space_points,
             bem_volume,
             region_centroid,
             pt_dist,
@@ -600,7 +721,7 @@ class CerebrA(BaseConfig):
             fig, axs = orthoview(
                 self.cerebra_volume,
                 self.affine,
-                src_volume=src_volume,
+                src_space_points=src_space_points,
                 bem_volume=bem_volume,
                 pt_dist=pt_dist,
                 plot_highlighted_region=plot_highlighted_region,
@@ -614,7 +735,7 @@ class CerebrA(BaseConfig):
             fig, ax = plot_brain_slice_2d(
                 self.cerebra_volume,
                 self.affine,
-                src_volume=src_volume,
+                src_space_pc=src_space_points,
                 bem_volume=bem_volume,
                 pt_dist=pt_dist,
                 plot_highlighted_region=plot_highlighted_region,
@@ -694,10 +815,4 @@ class CerebrA(BaseConfig):
 
 if __name__ == "__main__":
     setup_logging()
-    cerebra = CerebrA()
-
-    IDX = 3
-    INDICES = [1, 2, 3]
-
-    cerebra.src_vertex_index_to_ras(IDX)
-    cerebra.src_vertex_index_to_ras(INDICES)
+    cerebra = CerebrA(source_space_include_non_cortical=False)
