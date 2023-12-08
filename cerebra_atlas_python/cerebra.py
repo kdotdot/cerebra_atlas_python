@@ -9,6 +9,7 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 import mne
+import matplotlib
 
 from .plotting import (
     plot_volume_3d,
@@ -141,7 +142,7 @@ class CerebrA(BaseConfig):
 
         # Read labels
         label_details_path = op.join(self.cerebra_data_path, "label_details.csv")
-        self.label_details = pd.read_csv(label_details_path)
+        self.label_details = pd.read_csv(label_details_path, index_col=0)
 
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
@@ -171,6 +172,10 @@ class CerebrA(BaseConfig):
         self.src_space_points = None
         self._set_src_space()
 
+        self.bem_surfaces = None
+        self.bem_volume = None
+        self._set_bem_surfaces()
+
     @property
     def bem_names(self):
         return self.mni_average.bem_names
@@ -191,27 +196,20 @@ class CerebrA(BaseConfig):
         return mne.transforms.apply_trans(np.linalg.inv(self.affine), pts)
 
     # CENTERED MNI_AVERAGE POINTS
-    # Returns array of length 3 of point clouds
-    def get_bem_surfaces(self):
-        if self.bem_surfaces is None:
-            self.bem_surfaces = self.mni_average.get_bem_surfaces_ras_nzo(
-                transform=self.affine
-            )
-        return self.bem_surfaces  # RAS coordinate frame
 
-    def get_bem_volume(self):
-        if self.bem_volume is None:
-            bem_surfaces = self.get_bem_surfaces()
-            bem_volume = None
-            for surf, bem_id in zip(bem_surfaces, self.mni_average.bem_names.keys()):
-                if bem_volume is None:
-                    bem_volume = point_cloud_to_voxel(surf, vox_value=bem_id)
-                else:
-                    bem_volume = merge_voxel_grids(
-                        bem_volume, point_cloud_to_voxel(surf, vox_value=bem_id)
-                    )
-            self.bem_volume = bem_volume
-        return self.bem_volume
+    def _set_bem_surfaces(self):
+        # transform=self.affine
+        self.bem_surfaces = self.mni_average.get_bem_surfaces_ras_nzo(
+            transform=self.affine
+        )
+
+        for surf, bem_id in zip(self.bem_surfaces, self.mni_average.bem_names.keys()):
+            if self.bem_volume is None:
+                self.bem_volume = point_cloud_to_voxel(surf, vox_value=bem_id)
+            else:
+                self.bem_volume = merge_voxel_grids(
+                    self.bem_volume, point_cloud_to_voxel(surf, vox_value=bem_id)
+                )
 
     # If vol src fif does not exist, create it, otherwise read it
     def _set_src_space(self):
@@ -339,36 +337,34 @@ class CerebrA(BaseConfig):
 
         ids = all_regions["CerebrA ID"].values
 
-        print(ids)
-
         return ids
 
-    def get_src_space_volume(self):
-        if self.src_space_volume is None:
-            src_space_pc = self.get_src_space_pc()
-            self.src_space_volume = point_cloud_to_voxel(src_space_pc, vox_value=1)
-        return self.src_space_volume
+    # def get_src_space_volume(self):
+    #     if self.src_space_volume is None:
+    #         src_space_pc = self.get_src_space_pc()
+    #         self.src_space_volume = point_cloud_to_voxel(src_space_pc, vox_value=1)
+    #     return self.src_space_volume
 
-    def modify_src_space(self, src_space):
-        new_inuse = []
-        for i, is_inuse in enumerate(src_space[0]["inuse"]):
-            # Do not modify not in use
-            if not is_inuse:
-                new_inuse.append(0)
-                continue
-            # If used, check whether it falls outside the brain
-            pt = self.src_vertex_index_to_ras_voxel(i)
-            region_id = self.get_region_id_from_point(pt)
-            if region_id != 0:
-                new_inuse.append(1)
-            else:
-                new_inuse.append(0)
-        src_space[0]["inuse"] = np.array(new_inuse)
-        src_space[0]["vertno"] = np.where(src_space[0]["inuse"])[0]
-        src_space[0]["nuse"] = len(src_space[0]["vertno"])
-        src_space[0]["neighbor_vert"] = get_neighbors(src_space[0])
+    # def modify_src_space(self, src_space):
+    #     new_inuse = []
+    #     for i, is_inuse in enumerate(src_space[0]["inuse"]):
+    #         # Do not modify not in use
+    #         if not is_inuse:
+    #             new_inuse.append(0)
+    #             continue
+    #         # If used, check whether it falls outside the brain
+    #         pt = self.src_vertex_index_to_ras_voxel(i)
+    #         region_id = self.get_region_id_from_point(pt)
+    #         if region_id != 0:
+    #             new_inuse.append(1)
+    #         else:
+    #             new_inuse.append(0)
+    #     src_space[0]["inuse"] = np.array(new_inuse)
+    #     src_space[0]["vertno"] = np.where(src_space[0]["inuse"])[0]
+    #     src_space[0]["nuse"] = len(src_space[0]["vertno"])
+    #     src_space[0]["neighbor_vert"] = get_neighbors(src_space[0])
 
-        return src_space
+    #     return src_space
 
     # Functions
     def get_region_id_from_point(self, point):
@@ -431,7 +427,8 @@ class CerebrA(BaseConfig):
         return self.get_points_from_region_id(region_id)
 
     def get_distance_to_inner_skull(self, pt):
-        _, _, inner_skull_points = self.get_bem_surfaces()
+        # TODO: see mne.bem.distance_to_bem
+        _, _, inner_skull_points = self.bem_surfaces
         closest_point, distance = find_closest_point(inner_skull_points, pt)
 
         return closest_point, distance
@@ -501,6 +498,8 @@ class CerebrA(BaseConfig):
         plot_bem_surfaces: bool = False,
         plot_distance_to_inner_skull: bool = False,
         plot_highlighted_region: int = None,
+        plot_cortical: bool = None,
+        plot_t1_volume: bool = None,
         **kwargs,
     ):
         src_space_points = None
@@ -509,7 +508,7 @@ class CerebrA(BaseConfig):
 
         bem_volume = None
         if plot_bem_surfaces:
-            bem_volume = self.get_bem_volume()
+            bem_volume = self.bem_volume
 
         region_centroid = None
         if plot_highlighted_region is not None:
@@ -536,7 +535,30 @@ class CerebrA(BaseConfig):
             reg_name = self.get_region_name_from_point(kwargs["pt"])
             pt_text = f"{kwargs['pt']}\n{reg_name}"
 
-        return src_space_points, bem_volume, region_centroid, pt_dist, pt_text
+        volume_colors = None
+        if plot_cortical:
+            cortical_mask = self.label_details["cortical"]
+            volume_colors = [
+                matplotlib.colors.to_rgb(self.cortical_color)
+                if c
+                else matplotlib.colors.to_rgb(self.non_cortical_color)
+                for c in cortical_mask
+            ]
+            volume_colors = np.array(volume_colors)
+
+        t1_volume = None
+        if plot_t1_volume:
+            t1_volume = move_volume_from_lia_to_ras(self.mni_average.t1.dataobj)
+
+        return (
+            src_space_points,
+            bem_volume,
+            region_centroid,
+            pt_dist,
+            pt_text,
+            volume_colors,
+            t1_volume,
+        )
 
     def plot_data_2d(
         self,
@@ -545,6 +567,8 @@ class CerebrA(BaseConfig):
         plot_bem_surfaces: bool = False,
         plot_distance_to_inner_skull: bool = False,
         plot_highlighted_region: int = None,
+        plot_cortical: bool = None,
+        plot_t1_volume: bool = None,
         **kwargs,
     ):
         (
@@ -553,11 +577,15 @@ class CerebrA(BaseConfig):
             region_centroid,
             pt_dist,
             pt_text,
+            volume_colors,
+            t1_volume,
         ) = self.prepare_plot_data_2d(
             plot_src_space,
             plot_bem_surfaces,
             plot_distance_to_inner_skull,
             plot_highlighted_region,
+            plot_cortical=plot_cortical,
+            plot_t1_volume=plot_t1_volume,
             **kwargs,
         )
         if plot_type == "orthoview":
@@ -570,6 +598,8 @@ class CerebrA(BaseConfig):
                 plot_highlighted_region=plot_highlighted_region,
                 region_centroid=region_centroid,
                 pt_text=pt_text,
+                volume_colors=volume_colors,
+                t1_volume=t1_volume,
                 **kwargs,
             )
             return fig, axs
@@ -584,6 +614,8 @@ class CerebrA(BaseConfig):
                 plot_highlighted_region=plot_highlighted_region,
                 region_centroid=region_centroid,
                 pt_text=pt_text,
+                volume_colors=volume_colors,
+                t1_volume=t1_volume,
                 **kwargs,
             )
             return fig, ax
@@ -627,7 +659,7 @@ class CerebrA(BaseConfig):
     ):
         bem_surfaces = None
         if plot_bem:
-            bem_surfaces = self.get_bem_surfaces()
+            bem_surfaces = self.bem_surfaces
 
         src_space_pc = None
         if plot_src_space:

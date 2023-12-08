@@ -29,4 +29,5 @@ where = ["."] # Point to the project root
 "cerebra_atlas_python" = [
     "cerebra_data/*",
     "config.ini",
+    "cerebra_data/subjects",
 ] # Path relative to the package

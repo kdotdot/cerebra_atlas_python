@@ -74,6 +74,15 @@ class MNIAverage(BaseConfig):
         self._set_wm()
         self._set_t1()
 
+        src_space = mne.setup_volume_source_space(
+            subject=self.subject_name
+        )  # NOTE: Remove from here. Put in 0.0 notebook
+        self.mri_ras_t = src_space[0][
+            "mri_ras_t"
+        ]  # MRI (surface RAS)->RAS (non-zero origin)
+        self.src_mri_t = src_space[0]["src_mri_t"]  # MRI voxel->MRI (surface RAS)
+        self.vox_mri_t = src_space[0]["vox_mri_t"]  # MRI voxel->MRI (surface RAS)
+
     @property
     def bem_conductivity_string(self) -> str:
         """
@@ -200,7 +209,8 @@ class MNIAverage(BaseConfig):
         Returns:
             np.ndarray: Points converted to RAS (non-zero origin) coordinates.
         """
-        return mne.transforms.apply_trans(self.src["mri_ras_t"], pts) * 1000
+        res = mne.transforms.apply_trans(self.mri_ras_t["trans"], pts) * 1000
+        return res
 
     def ras_nzo_to_mri(self, pts: np.ndarray) -> np.ndarray:
         """
@@ -213,9 +223,7 @@ class MNIAverage(BaseConfig):
         """
         # print(np.linalg.inv(self.src["mri_ras_t"]), pts)
         return (
-            mne.transforms.apply_trans(
-                np.linalg.inv(self.src["mri_ras_t"]["trans"]), pts
-            )
+            mne.transforms.apply_trans(np.linalg.inv(self.mri_ras_t["trans"]), pts)
             / 1000
         )
 
@@ -267,6 +275,9 @@ class MNIAverage(BaseConfig):
         Returns:
             np.ndarray: An array of BEM surfaces in RAS (non-zero origin) coordinates.
         """
+        # if transform is None:
+        #     transform = self.head_mri_t
+        # transform = mne.transforms.Transform("head", "mri", self.head_mri_t)
         surfaces = []
         for surf in self.bem["surfs"]:
             surf = surf["rr"]
@@ -278,7 +289,7 @@ class MNIAverage(BaseConfig):
                     int
                 )
             surfaces.append(bem_surface)
-        surfaces = np.array(surfaces)
+        surfaces = np.array(surfaces).astype(int)
         return surfaces
 
 

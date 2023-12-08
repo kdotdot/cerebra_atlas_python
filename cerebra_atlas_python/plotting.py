@@ -378,6 +378,8 @@ def plot_brain_slice_2d(
     add_coordinate_frame_info=True,
     add_ax_labels=True,
     add_ax_ticks=True,
+    volume_colors=None,
+    t1_volume=None,
 ):
     x_label, y_label = get_ax_labels(axis)
 
@@ -466,7 +468,7 @@ def plot_brain_slice_2d(
     # BEM SURFACES
     if bem_volume is not None:
         bem_slice = slice_volume(
-            bem_volume, fixed_value=fixed_value, axis=axis, n_layers=30
+            bem_volume, fixed_value=fixed_value, axis=axis, n_layers=5
         )
         colors = get_cmap_colors("hsv", bem_volume.max())
         colors[-1] = [1, 0, 0]
@@ -515,7 +517,7 @@ def plot_brain_slice_2d(
         new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
             cerebra_slice,
             axis=axis,
-            colors=colors,
+            colors=colors if volume_colors is None else volume_colors,
             avoid_values=avoid_values,
             alpha_values=alpha_values,
             size_values=np.repeat(1, len(colors)),
@@ -548,6 +550,23 @@ def plot_brain_slice_2d(
             [inner_skull_pt[y_label], pt[y_label]],
             marker="o",
             c="red",
+        )
+
+    # T1 volume
+    if t1_volume is not None:
+        t1_slice = slice_volume(
+            t1_volume, fixed_value=fixed_value, axis=axis, n_layers=2
+        )
+        new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
+            t1_slice,
+            axis=axis,
+        )
+        xs_ys, cs, alphas, sizes = merge_points_optimized(
+            [xs_ys, new_xs_ys],
+            [cs, new_cs],
+            [alphas, new_alphas],
+            [sizes, new_sizes],
+            default_alpha=0.5,
         )
 
     if xs_ys is not None:
@@ -704,7 +723,10 @@ def plot_volume_3d(
                         if volume[x, y, z] == 103 and not plot_whitematter:
                             continue
                         val = int(volume[x, y, z])
-                        cs.append(cmap_colors[val])
+                        if volume_colors is None:
+                            cs.append(cmap_colors[val])
+                        else:
+                            cs.append(volume_colors[val])
                         xs.append(x)
                         ys.append(y)
                         zs.append(z)
