@@ -6,9 +6,13 @@ import logging
 import time
 from typing import Optional, List, Tuple, Callable, Any, Union
 
+import nibabel as nib
+import pandas as pd
 import numpy as np
 import mne
 import matplotlib.pyplot as plt
+
+# from cerebra_atlas_python.plotting import get_cmap_colors_hex
 
 
 def time_func_decorator(func: Callable) -> Callable:
@@ -117,6 +121,17 @@ def move_volume_from_lia_to_ras(
     # affine[1, :], affine[2, :] = affine[2, :], affine[1, :] how?
 
     return volume, affine
+
+
+def move_volume_from_ras_to_lia(volume: np.ndarray):
+    """
+    Transforms a volume from RAS  orientation to LIA orientation.
+
+    """
+    volume = np.flipud(volume)
+    volume = np.rot90(volume, 1, axes=(1, 2))
+
+    return volume
 
 
 def find_closest_point(
@@ -260,6 +275,24 @@ def point_cloud_to_voxel(
     return voxel_grid
 
 
+def point_cloud_to_voxel_lia(
+    point_cloud: np.ndarray, dtype=np.uint8, vox_value: int = 1
+) -> np.ndarray:
+    # Initialize a voxel grid of the specified size filled with zeros
+    voxel_grid = np.zeros((256, 256, 256), dtype=dtype)
+
+    # Iterate through each point in the point cloud
+    for point in point_cloud:
+        # Check if the point is within the valid range
+        if all(0 <= coord < 256 for coord in point):
+            # Convert the floating point coordinates to integers
+            l, i, a = map(int, point)
+            # Set the corresponding voxel to 1
+            voxel_grid[x, y, z] = vox_value
+
+    return voxel_grid
+
+
 # Helper functions
 def get_standard_montage(kept_ch_names=None, kind="GSN-HydroCel-129", head_size=0.1025):
     original_montage = mne.channels.make_standard_montage(kind, head_size=head_size)
@@ -278,6 +311,17 @@ def get_standard_montage(kept_ch_names=None, kind="GSN-HydroCel-129", head_size=
     new_montage.dig = new_montage.dig[:3] + kept_channel_info  #
 
     return new_montage
+
+
+def inspect_img(path):
+    img = nib.load(path)
+    data = img.get_fdata()
+    img.orthoview()
+    logging.info(f"{img.shape= }")
+    codes = nib.orientations.aff2axcodes(img.affine)
+    logging.info(f"Coordinate frame: {''.join(codes)}")
+    logging.info(f"\n{img.affine}")
+    return img, data
 
 
 if __name__ == "__main__":

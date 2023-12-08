@@ -24,77 +24,8 @@ from .utils import (
     find_closest_point,
     merge_voxel_grids,
     point_cloud_to_voxel,
+    move_volume_from_ras_to_lia,
 )
-
-
-def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Preprocesses the given dataframe by performing several operations such as removing rows and columns,
-    converting data types, duplicating and modifying data, and appending new information.
-
-    Args:
-        df (pd.DataFrame): The dataframe to preprocess.
-
-    Returns:
-        pd.DataFrame: The preprocessed dataframe.
-    """
-    # Remove first row
-    df.drop(0, inplace=True)
-
-    # Remove unused columns
-    df.drop(columns=["Unnamed: 3", "Notes", "Dice Kappa"], inplace=True)
-
-    # Change id column from string to int
-    df["CerebrA ID"] = pd.to_numeric(df["CerebrA ID"])
-    df["CerebrA ID"] = df["CerebrA ID"].astype("uint8")
-
-    # Copy df and append
-    df = pd.concat([df, df])
-    df.reset_index(inplace=True, drop=True)
-
-    # Modify left side labels
-    df.loc["51":, "CerebrA ID"] = df.loc["51":, "CerebrA ID"] + 51
-
-    # df["Mindboggle ID"] = df["Mindboggle ID"].astype("uint16")
-
-    # Modify names to include hemisphere
-    df["hemisphere"] = ""
-    # df.loc[:, "hemisphere"] = 12
-    df.loc["51":, "hemisphere"] = "Left"
-    df.loc[:"50", "hemisphere"] = "Right"
-
-    # Label cortical regions
-    df["cortical"] = df["Mindboggle ID"] > 1000
-
-    # Adjust Mindboggle ids
-    # (see https://mindboggle.readthedocs.io/en/latest/labels.html)
-    mask = df["cortical"] & (df["hemisphere"] == "Left")
-    df.loc[mask, "Mindboggle ID"] = df.loc[mask, "Mindboggle ID"] - 1000
-
-    # Add white matter to label details
-    df.loc[len(df.index)] = [0, "White matter", 103, "", False]
-
-    # Add 'empty' to label details
-    df.loc[len(df.index)] = [0, "Empty", 0, "", False]
-
-    df.sort_values(by=["CerebrA ID"], inplace=True)
-    df.reset_index(inplace=True, drop=True)
-
-    # Add hemispheres
-
-    # Add colors
-    # Order by CerebrA ID then get colors
-    df["color"] = get_cmap_colors_hex()
-
-    return df
-
-
-def get_label_details(path):
-    """Reads a CSV file from the given path and preprocesses its contents using the preprocess_label_details function.
-    Returns:
-        pd.DataFrame: The preprocessed dataframe obtained from the CSV file.
-    """
-    return preprocess_label_details(pd.read_csv(path))
 
 
 def get_volume_ras(path, dtype=np.uint8):
@@ -146,35 +77,6 @@ def get_cerebra_volume(cerebra_mgz, wm_mgz):
 
 
 class CerebrA(BaseConfig):
-    """
-    Initializes a CerebrA object with configurations for processing brain imaging data.
-
-    This class is responsible for setting up paths and configurations for cerebra data processing,
-    loading and processing brain volumes and label details, and providing functionalities for
-    coordinate frame transformations and region-based analysis.
-
-    Args:
-        config_path: (Optional[str]): Path to the config.ini file
-        mni_average (Optional[MNIAverage]): An instance of MNIAverage. If None, a new instance is created.
-        MNIAverageKwArgs (Optional[Dict[Any, Any]]): Keyword arguments for creating an MNIAverage instance.
-        **kwargs: Additional keyword arguments for BaseConfig.
-
-    Attributes:
-        cerebra_output_path (str): Path for cerebra output data.
-        default_data_path (str): Default path for cerebra data.
-        bem_surfaces (Optional[np.ndarray]): Array of 3 BEM point clouds.
-        bem_volume (Optional[np.ndarray]): Voxel grid of size [256, 256, 256] representing source space.
-        src_space_pc (Optional[np.ndarray]): Source space point cloud.
-        src_space_volume (Optional[np.ndarray]): Voxel grid of size [256, 256, 256] representing source space.
-        mni_average (MNIAverage): MNIAverage instance.
-        cerebra_volume (np.ndarray): Processed cerebra volume data.
-        affine (np.ndarray): Affine matrix for coordinate transformations.
-        label_details (pd.DataFrame): Dataframe containing label details for brain regions.
-        region_ids (np.ndarray): Sorted array of unique region IDs in label_details.
-        volume_data_sparse (Dict[int, np.ndarray]): Sparse representation of the volume data.
-
-    """
-
     def __init__(
         self,
         config_path=op.dirname(__file__) + "/config.ini",
@@ -183,13 +85,13 @@ class CerebrA(BaseConfig):
         **kwargs,
     ):
         self.cerebra_output_path: str = None
-        self.default_data_path: str = None
+        self.cerebra_data_path: str = None
         self.source_space_grid_size: int = None
         self.source_space_include_wm: bool = None
         self.source_space_include_non_cortical = None
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
-            "default_data_path": op.dirname(__file__) + "/cerebra_data/cerebra",
+            "cerebra_data_path": op.dirname(__file__) + "/cerebra_data",
             "remove_empty_from_src_space": True,
             "source_space_grid_size": 3,  # mm
             "source_space_include_wm": False,
@@ -203,14 +105,14 @@ class CerebrA(BaseConfig):
             **kwargs,
         )
 
-        self.bem_surfaces = None  # Array of 3 bem point clouds
-        self.bem_volume = (
-            None  # Voxel grid of size [256, 256, 256] : 1 represent source space
-        )
-        self.src_space_pc = None  # Source space point cloud
-        self.src_space_volume = (
-            None  # Voxel grid of size [256, 256, 256] : 1 represent source space
-        )
+        # self.bem_surfaces = None  # Array of 3 bem point clouds
+        # self.bem_volume = (
+        #     None  # Voxel grid of size [256, 256, 256] : 1 represent source space
+        # )
+        # self.src_space_pc = None  # Source space point cloud
+        # self.src_space_volume = (
+        #     None  # Voxel grid of size [256, 256, 256] : 1 represent source space
+        # )
 
         # Instantiate/ assign MNIAverage object
         if mni_average is None:
@@ -228,24 +130,18 @@ class CerebrA(BaseConfig):
             os.makedirs(self.cerebra_output_path, exist_ok=True)
 
         # Define volumes' path
-        self.cerebra_path = cerebra_path = op.join(
-            self.default_data_path, "CerebrA_in_head.mgz"
-        )
-        # t1_path = op.join(self.mni_average.fs_subjects_dir, "MNIAverage/mri/T1.mgz")
-
-        self._src_space_path = op.join(
-            self.cerebra_output_path,
-            f"mne.SourceSpaces{self.__class__.__name__}-d-src.fif",
+        self.cerebra_in_head_path = op.join(
+            self.cerebra_data_path, "CerebrA_in_head.mgz"
         )
 
         # Set volume
         self.cerebra_volume, self.affine = get_cerebra_volume(
-            cerebra_path, self.mni_average.wm_path
+            self.cerebra_in_head_path, self.mni_average.wm_path
         )
 
         # Read labels
-        label_details_path = op.join(self.default_data_path, "CerebrA_LabelDetails.csv")
-        self.label_details = get_label_details(label_details_path)
+        label_details_path = op.join(self.cerebra_data_path, "label_details.csv")
+        self.label_details = pd.read_csv(label_details_path)
 
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
@@ -370,17 +266,32 @@ class CerebrA(BaseConfig):
             combined_mask = np.logical_or(combined_mask, downsampled_whitematter_mask)
 
         self.src_space_labels = self.cerebra_volume[combined_mask]
-        self.src_space_points = self.mni_average.get_src_space_ras_nzo(
-            transform=self.affine
-        )
-        # self.src_space_points = np.indices([256, 256, 256])[:, combined_mask].T
+        self.src_space_points = np.indices([256, 256, 256])[:, combined_mask].T
         normals = np.repeat([[0, 0, 1]], len(self.src_space_points), axis=0)
         #
         # TODO: Transform to original coordinate frame
-        rr = self.src_space_points.copy()
+        # rr = self.inverse_center_ras(self.src_space_points)
+        rr = point_cloud_to_voxel(self.src_space_points)
+        rr = move_volume_from_ras_to_lia(rr)
+        rr = np.argwhere(rr != 0)  # Back to point cloud
 
-        rr = self.inverse_center_ras(rr)
-        rr = self.mni_average.ras_nzo_to_mri(rr)
+        inv_aff = np.linalg.inv(self.mni_average.t1.affine)
+
+        # Translation
+        inv_aff[:, 3][2] = 132
+        #
+        # inv_aff[:, 3][3] = 178
+
+        # Rotation
+        inv_aff[:, 1][2] *= -1
+        inv_aff[:, 2][1] *= -1
+        # inv_aff[:, 3][3] *= -1
+        inv_aff[:, 3][1] = -128
+
+        # rr = self.mni_average.inverse_center_lia(rr)
+        rr = mne.transforms.apply_trans(inv_aff, rr)
+
+        rr = rr / 1000
 
         pos = dict(rr=rr, nn=normals)
         self.src_space = mne.setup_volume_source_space(pos=pos)
@@ -743,6 +654,76 @@ class CerebrA(BaseConfig):
             region_pts=region_pts,
             **kwargs,
         )
+
+
+def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Preprocesses the given dataframe by performing several operations such as removing rows and columns,
+    converting data types, duplicating and modifying data, and appending new information.
+
+    Args:
+        df (pd.DataFrame): The dataframe to preprocess.
+
+    Returns:
+        pd.DataFrame: The preprocessed dataframe.
+    """
+    # Remove first row
+    df.drop(0, inplace=True)
+
+    # Remove unused columns
+    df.drop(columns=["Unnamed: 3", "Notes", "Dice Kappa"], inplace=True)
+
+    # Change id column from string to int
+    df["CerebrA ID"] = pd.to_numeric(df["CerebrA ID"])
+    df["CerebrA ID"] = df["CerebrA ID"].astype("uint8")
+
+    # Copy df and append
+    df = pd.concat([df, df])
+    df.reset_index(inplace=True, drop=True)
+
+    # Modify left side labels
+    df.loc["51":, "CerebrA ID"] = df.loc["51":, "CerebrA ID"] + 51
+
+    # df["Mindboggle ID"] = df["Mindboggle ID"].astype("uint16")
+
+    # Modify names to include hemisphere
+    df["hemisphere"] = ""
+    # df.loc[:, "hemisphere"] = 12
+    df.loc["51":, "hemisphere"] = "Left"
+    df.loc[:"50", "hemisphere"] = "Right"
+
+    # Label cortical regions
+    df["cortical"] = df["Mindboggle ID"] > 1000
+
+    # Adjust Mindboggle ids
+    # (see https://mindboggle.readthedocs.io/en/latest/labels.html)
+    mask = df["cortical"] & (df["hemisphere"] == "Left")
+    df.loc[mask, "Mindboggle ID"] = df.loc[mask, "Mindboggle ID"] - 1000
+
+    # Add white matter to label details
+    df.loc[len(df.index)] = [0, "White matter", 103, "", False]
+
+    # Add 'empty' to label details
+    df.loc[len(df.index)] = [0, "Empty", 0, "", False]
+
+    df.sort_values(by=["CerebrA ID"], inplace=True)
+    df.reset_index(inplace=True, drop=True)
+
+    # Add hemispheres
+
+    # Add colors
+    # Order by CerebrA ID then get colors
+    df["color"] = get_cmap_colors_hex()
+
+    return df
+
+
+def get_label_details(path):
+    """Reads a CSV file from the given path and preprocesses its contents using the preprocess_label_details function.
+    Returns:
+        pd.DataFrame: The preprocessed dataframe obtained from the CSV file.
+    """
+    return preprocess_label_details(pd.read_csv(path))
 
 
 if __name__ == "__main__":

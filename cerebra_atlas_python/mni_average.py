@@ -12,8 +12,10 @@ from typing import Tuple, Optional, Dict, List
 import mne
 import nibabel as nib
 import numpy as np
+import pandas as pd
 
 from cerebra_atlas_python.config import BaseConfig
+from cerebra_atlas_python.plotting import get_cmap_colors_hex
 
 
 class MNIAverage(BaseConfig):
@@ -52,6 +54,7 @@ class MNIAverage(BaseConfig):
             self.bem_folder_path, f"{self.subject_name}-fiducials.fif"
         )
         self.wm_path = op.join(self.subject_dir, "mri/wm.mgz")
+        self.t1_path = op.join(self.subject_dir, "mri/T1.mgz")
         self.head_mri_t_path = op.join(self.subject_dir, "head_mri_t.fif")
         self.info_path = op.join(self.cerebra_data_path, "info.fif")
 
@@ -68,6 +71,8 @@ class MNIAverage(BaseConfig):
         self._set_fiducials()
         self._set_head_mri_t()
         self._set_info()
+        self._set_wm()
+        self._set_t1()
 
     @property
     def bem_conductivity_string(self) -> str:
@@ -111,9 +116,7 @@ class MNIAverage(BaseConfig):
     #     """
     #     if not op.exists(self._vol_src_path):
     #         logging.info("Generating volume source space...")
-    #         surface = op.join(
-    #             self.fs_subjects_dir, "MNIAverage", "bem", "inner_skull.surf"
-    #         )
+
     #         self.vol_src = mne.setup_volume_source_space(
     #             subject="MNIAverage",
     #             subjects_dir=self.fs_subjects_dir,
@@ -158,6 +161,14 @@ class MNIAverage(BaseConfig):
     def _set_info(self):
         """Internal method to read manually aligned fiducials."""
         self.info = mne.io.read_info(self.info_path)
+
+    def _set_wm(self):
+        """Internal method to read manually aligned fiducials."""
+        self.wm = nib.load(self.wm_path)
+
+    def _set_t1(self):
+        """Internal method to read manually aligned fiducials."""
+        self.t1 = nib.load(self.t1_path)
 
     def src_vertex_index_to_mri(
         self, idx: Optional[int or np.ndarray] = None
@@ -207,6 +218,18 @@ class MNIAverage(BaseConfig):
             )
             / 1000
         )
+
+    def apply_head_mri_t(self, pts: np.ndarray) -> np.ndarray:
+        return mne.transforms.apply_trans(self.head_mri_t, pts) / 1000
+
+    def center_lia(self, pts: np.ndarray) -> np.ndarray:
+        return mne.transforms.apply_trans(self.t1.affine, pts)
+
+    def inverse_center_lia(self, pts: np.ndarray) -> np.ndarray:
+        return mne.transforms.apply_trans(np.linalg.inv(self.t1.affine), pts)
+
+    # def apply_mri_head_t(self, pts: np.ndarray) -> np.ndarray:
+    #     return mne.transforms.apply_trans(self.head_mri_t, pts)
 
     def get_src_space_ras_nzo(
         self, transform: Optional[mne.Transform] = None

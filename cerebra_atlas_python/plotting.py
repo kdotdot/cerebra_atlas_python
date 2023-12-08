@@ -316,7 +316,7 @@ def project_volume_2d(
 
     xyzs = np.take(xyzs, unique_indices, axis=1)
 
-    new_values = volume_slice[tuple(xyzs)]
+    new_values = np.array(volume_slice[tuple(xyzs)]).astype(int)
     cs = colors[new_values] if colors is not None else None
     alphas = alpha_values[new_values] if alpha_values is not None else None
     sizes = size_values[new_values] if size_values is not None else None
