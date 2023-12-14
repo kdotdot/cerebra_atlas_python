@@ -4,12 +4,13 @@ Cerebra...
 import os
 import os.path as op
 import logging
+from typing import Dict
 import pickle
-import nibabel as nib
 import numpy as np
 import pandas as pd
 import mne
 import matplotlib
+
 
 from .plotting import (
     plot_volume_3d,
@@ -20,61 +21,13 @@ from .plotting import (
 from .config import BaseConfig
 from .mni_average import MNIAverage
 from .utils import (
-    setup_logging,
     move_volume_from_lia_to_ras,
     find_closest_point,
     merge_voxel_grids,
     point_cloud_to_voxel,
     move_volume_from_ras_to_lia,
+    get_volume_ras,
 )
-
-
-def get_volume_ras(path, dtype=np.uint8):
-    """
-    Loads a medical image volume from the given path and converts its coordinate frame from LIA to RAS.
-
-    This function:
-    1. Loads the volume using nibabel.
-    2. Converts the volume's coordinate frame from LIA (Left, Inferior, Anterior) to RAS (Right, Anterior, Superior)
-       using the move_volume_from_lia_to_ras function.
-
-    Args:
-        path (str): The file path of the medical image volume.
-        dtype (type, optional): The data type to be used for the volume data. Defaults to np.uint8.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing the transformed volume data and its affine matrix.
-    """
-    img = nib.load(path)  # All volumes are in LIA coordinate frame
-    volume, affine = move_volume_from_lia_to_ras(
-        np.array(img.dataobj, dtype=dtype), img.affine
-    )
-    return volume, affine
-
-
-def get_cerebra_volume(cerebra_mgz, wm_mgz):
-    """
-    Processes cerebra and white matter medical image volumes to integrate
-    white matter information into the cerebra volume.
-
-    This function:
-    1. Retrieves the volume data and affine matrices for both cerebra and white matter images in RAS coordinate frame.
-    2. Modifies the cerebra volume by adding a specific label (103) to represent white matter regions
-       that are not already labeled in the cerebra volume.
-
-    Args:
-        cerebra_mgz (str): The file path of the cerebra medical image volume.
-        wm_mgz (str): The file path of the white matter medical image volume.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing the modified cerebra volume data and its affine matrix.
-    """
-    cerebra_volume, cerebra_affine = get_volume_ras(cerebra_mgz)
-    wm_volume, _ = get_volume_ras(wm_mgz)
-
-    # Add whitematter to volume data
-    cerebra_volume[(wm_volume != 0) & (cerebra_volume == 0)] = 103
-    return cerebra_volume, cerebra_affine
 
 
 class CerebrA(BaseConfig):
@@ -93,7 +46,6 @@ class CerebrA(BaseConfig):
         default_config = {
             "cerebra_output_path": "./generated/cerebra",
             "cerebra_data_path": op.dirname(__file__) + "/cerebra_data",
-            "remove_empty_from_src_space": True,
             "source_space_grid_size": 3,  # mm
             "source_space_include_wm": False,
             "source_space_include_non_cortical": True,
@@ -106,14 +58,24 @@ class CerebrA(BaseConfig):
             **kwargs,
         )
 
-        # self.bem_surfaces = None  # Array of 3 bem point clouds
-        # self.bem_volume = (
-        #     None  # Voxel grid of size [256, 256, 256] : 1 represent source space
-        # )
-        # self.src_space_pc = None  # Source space point cloud
-        # self.src_space_volume = (
-        #     None  # Voxel grid of size [256, 256, 256] : 1 represent source space
-        # )
+        # Always load (fast/required)
+        self.label_details: pd.DataFrame = None
+        self.cerebra_volume: np.ndarray = None
+        self.affine: np.ndarray = None
+        # Load on demand [using @property] (slow)
+        self._cerebra_sparse: Dict[np.ndarray] = None
+        self._src_space: mne.SourceSpaces = None
+        self._src_space_points: np.ndarray = None
+        self._src_space_labels: np.ndarray = None
+        self._src_space_n_points_per_region: np.ndarray = None
+        self._src_space_n_total_points: int = None
+        self._src_space_mask: np.ndarray = None
+        self._bem_surfaces: np.ndarray = None
+        self._bem_volume: np.ndarray = None
+
+        # If output folder does not exist, create it
+        if not op.exists(self.cerebra_output_path):
+            os.makedirs(self.cerebra_output_path, exist_ok=True)
 
         # Instantiate/ assign MNIAverage object
         if mni_average is None:
@@ -123,98 +85,175 @@ class CerebrA(BaseConfig):
             assert isinstance(
                 mni_average, MNIAverage
             ), f"Wrong class should be MNIAverage {type(mni_average)= }"
-
             self.mni_average = mni_average
 
-        # If output folder does not exist, create it
-        if not op.exists(self.cerebra_output_path):
-            os.makedirs(self.cerebra_output_path, exist_ok=True)
-
-        # Define volumes' path
-        self.cerebra_in_head_path = op.join(
-            self.cerebra_data_path, "CerebrA_in_head.mgz"
-        )
-
-        # Set volume
-        self.cerebra_volume, self.affine = get_cerebra_volume(
-            self.cerebra_in_head_path, self.mni_average.wm_path
-        )
-
-        # Read labels
+        # Input paths
+        cerebra_volume_path = op.join(self.cerebra_data_path, "volume.npy")
+        cerebra_affine_path = op.join(self.cerebra_data_path, "affine.npy")
         label_details_path = op.join(self.cerebra_data_path, "label_details.csv")
+
+        # Output paths
+        self._cerebra_sparse_path = op.join(
+            self.cerebra_output_path, "CerebrA_sparse.npy"
+        )
+        self._src_space_path = op.join(
+            self.cerebra_output_path, f"{self.src_space_string}_src.fif"
+        )
+        self._src_space_mask_path = op.join(
+            self.cerebra_output_path, f"{self.src_space_string}_mask.npy"
+        )
+        self._src_space_points_path = op.join(
+            self.cerebra_output_path, f"{self.src_space_string}_src_pts.npy"
+        )
+
+        self.cerebra_volume = np.load(cerebra_volume_path)
+        self.affine = np.load(cerebra_affine_path)
         self.label_details = pd.read_csv(label_details_path, index_col=0)
 
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
-
-        # Sparse representation
-        cerebra_sparse_path = op.join(self.cerebra_output_path, "CerebrA_sparse.npy")
-        if not op.exists(cerebra_sparse_path):
-            logging.info("Generating sparse representation of Cerebra volume data...")
-            self.volume_data_sparse = {
-                region_id: self.calculate_points_from_region_id(region_id)
-                for region_id in self.region_ids
-            }
-            with open(cerebra_sparse_path, "wb") as handle:
-                pickle.dump(
-                    self.volume_data_sparse, handle, protocol=pickle.HIGHEST_PROTOCOL
-                )
-        else:
-            with open(cerebra_sparse_path, "rb") as handle:
-                self.volume_data_sparse = pickle.load(handle)
-
-        # Constant attributes
         self.cortical_color = "#9EC8B9"
         self.non_cortical_color = "#1B4242"
 
-        self.src_space_labels = None
-        self.src_space = None
-        self.src_space_points = None
-        self._set_src_space()
-
-        self.bem_surfaces = None
-        self.bem_volume = None
-        self._set_bem_surfaces()
+    # * PROPERTIES
+    @property
+    def src_space_string(self):
+        return f"src_space_{self.source_space_grid_size}mm{'wm' if self.source_space_include_wm else ''}{'_nc' if self.source_space_include_non_cortical else ''}"
 
     @property
-    def bem_names(self):
-        return self.mni_average.bem_names
+    def cerebra_sparse(self):
+        if self._cerebra_sparse is None:
+            self._set_cerebra_sparse()
+        return self._cerebra_sparse
 
-    # COORDINATE FRAME TRANSFORMATIONS
+    @property
+    def src_space(self):
+        if self._src_space is None:
+            self._set_src_space()
+        return self._src_space
 
-    def src_vertex_index_to_ras_voxel(self, vert_id: np.ndarray) -> np.ndarray:
-        pts = self.mni_average.src_vertex_index_to_mri(vert_id)
-        pts = self.mni_average.mri_to_ras_nzo(pts)
-        #  RAS (non-zero origin) -> RAS
-        return np.squeeze(self.center_ras(pts)).astype(int)
+    @property
+    def src_space_mask(self):
+        if self._src_space_mask is None:
+            self._set_src_space_mask()
+        return self._src_space_mask
 
-    def center_ras(self, pts: np.ndarray) -> np.ndarray:
-        #  RAS (non-zero origin) -> RAS
-        return mne.transforms.apply_trans(self.affine, pts)
+    @property
+    def src_space_points(self):
+        if self._src_space_points is None:
+            self._set_src_space_points()
+        return self._src_space_points
 
-    def inverse_center_ras(self, pts: np.ndarray) -> np.ndarray:
-        return mne.transforms.apply_trans(np.linalg.inv(self.affine), pts)
+    @property
+    def src_space_labels(self):
+        if self._src_space_labels is None:
+            self._src_space_labels = self.cerebra_volume[self.src_space_mask]
+        return self._src_space_labels
 
-    # CENTERED MNI_AVERAGE POINTS
+    @property
+    def src_space_n_points_per_region(self):
+        if self._src_space_n_points_per_region is None:
+            points_per_region = np.zeros(len(self.region_ids))
+            region_ids, counts = np.unique(self.src_space_labels, return_counts=True)
+            points_per_region[region_ids] = counts
+            self._src_space_n_points_per_region = points_per_region
+        return self._src_space_n_points_per_region
+
+    @property
+    def src_space_n_total_points(self):
+        return len(self.src_space_points)
+
+    @property
+    def bem_surfaces(self):
+        if self._bem_surfaces is None:
+            self._set_bem_surfaces()
+        return self._bem_surfaces
+
+    @property
+    def bem_volume(self):
+        if self._bem_volume is None:
+            self._set_bem_volume()
+        return self._bem_volume
+
+    # * SETTERS
+    def _set_cerebra_sparse(self):
+        if not op.exists(self._cerebra_sparse_path):
+            logging.info("Generating sparse representation of Cerebra volume data...")
+            self._cerebra_sparse = {
+                region_id: self.calculate_points_from_region_id(region_id)
+                for region_id in self.region_ids
+            }
+            with open(self._cerebra_sparse_path, "wb") as handle:
+                pickle.dump(
+                    self._cerebra_sparse, handle, protocol=pickle.HIGHEST_PROTOCOL
+                )
+        else:
+            with open(self._cerebra_sparse_path, "rb") as handle:
+                self._cerebra_sparse = pickle.load(handle)
+
+    def _set_src_space(self):
+        if not op.exists(self._src_space_path):
+            logging.info("Generating new source space %s {self._src_space_path}")
+            normals = np.repeat([[0, 0, 1]], self.src_space_n_total_points, axis=0)
+
+            rr = point_cloud_to_voxel(self.src_space_points)
+            rr = move_volume_from_ras_to_lia(rr)
+            rr = np.argwhere(rr != 0)  # Back to point cloud
+            inv_aff = np.linalg.inv(self.mni_average.t1.affine)
+            # Translation
+            inv_aff[:, 3][2] = 132
+            # Rotation
+            inv_aff[:, 1][2] *= -1
+            inv_aff[:, 2][1] *= -1
+            inv_aff[:, 3][1] = -128
+            rr = mne.transforms.apply_trans(inv_aff, rr)
+            rr = rr / 1000
+            pos = dict(rr=rr, nn=normals)
+            self._src_space = mne.setup_volume_source_space(pos=pos)
+            self._src_space.save(self._src_space_path, overwrite=True, verbose=False)
+        else:
+            logging.info("Loading source space from disk | %s ", self._src_space_path)
+            self._src_space = mne.read_source_spaces(self._src_space_path)
+
+    def _set_src_space_mask(self):
+        if self._src_space_mask is None:
+            if not op.exists(self._src_space_mask_path):
+                self._src_space_mask = self._get_src_space_mask()
+                np.save(self._src_space_mask_path, self._src_space_mask)
+            else:
+                self._src_space_mask = np.load(self._src_space_mask_path)
+        return self._src_space_mask
+
+    def _set_src_space_points(self):
+        if self._src_space_points is None:
+            if not op.exists(self._src_space_points_path):
+                self._src_space_points = np.indices([256, 256, 256])[
+                    :, self.src_space_mask
+                ].T
+                np.save(self._src_space_points_path, self._src_space_points)
+            else:
+                self._src_space_points = np.load(self._src_space_points_path)
+        return self._src_space_points
 
     def _set_bem_surfaces(self):
-        # transform=self.affine
-        self.bem_surfaces = self.mni_average.get_bem_surfaces_ras_nzo(
+        self._bem_surfaces = self.mni_average.get_bem_surfaces_ras_nzo(
             transform=self.affine
         )
 
+    def _set_bem_volume(self):
+        self._bem_volume = None
         for surf, bem_id in zip(self.bem_surfaces, self.mni_average.bem_names.keys()):
-            if self.bem_volume is None:
-                self.bem_volume = point_cloud_to_voxel(surf, vox_value=bem_id)
+            if self._bem_volume is None:
+                self._bem_volume = point_cloud_to_voxel(surf, vox_value=bem_id)
             else:
-                self.bem_volume = merge_voxel_grids(
+                self._bem_volume = merge_voxel_grids(
                     self.bem_volume, point_cloud_to_voxel(surf, vox_value=bem_id)
                 )
 
-    # If vol src fif does not exist, create it, otherwise read it
-    def _set_src_space(self):
-        """Internal method to set up the volume source space."""
-        logging.debug("Generating discrete source space...")
+    # * TRANSFORMS
+    ######
+    # * METHODS
+    def _get_src_space_mask(self):
         # Create grid (downsample available volume)
         size = self.source_space_grid_size
         grid = np.zeros((256, 256, 256))
@@ -262,111 +301,8 @@ class CerebrA(BaseConfig):
             # Downsample
             downsampled_whitematter_mask = np.logical_and(grid_mask, whitematter_mask)
             combined_mask = np.logical_or(combined_mask, downsampled_whitematter_mask)
+        return combined_mask
 
-        self.src_space_labels = self.cerebra_volume[combined_mask]
-        self.src_space_points = np.indices([256, 256, 256])[:, combined_mask].T
-        normals = np.repeat([[0, 0, 1]], len(self.src_space_points), axis=0)
-        #
-        # TODO: Transform to original coordinate frame
-        # rr = self.inverse_center_ras(self.src_space_points)
-        rr = point_cloud_to_voxel(self.src_space_points)
-        rr = move_volume_from_ras_to_lia(rr)
-        rr = np.argwhere(rr != 0)  # Back to point cloud
-
-        inv_aff = np.linalg.inv(self.mni_average.t1.affine)
-
-        # Translation
-        inv_aff[:, 3][2] = 132
-        #
-        # inv_aff[:, 3][3] = 178
-
-        # Rotation
-        inv_aff[:, 1][2] *= -1
-        inv_aff[:, 2][1] *= -1
-        # inv_aff[:, 3][3] *= -1
-        inv_aff[:, 3][1] = -128
-
-        # rr = self.mni_average.inverse_center_lia(rr)
-        rr = mne.transforms.apply_trans(inv_aff, rr)
-
-        rr = rr / 1000
-
-        pos = dict(rr=rr, nn=normals)
-        self.src_space = mne.setup_volume_source_space(pos=pos)
-        # self.src_space.save(self._src_space_path, overwrite=True, verbose=True)
-
-    # Returns point cloud
-    def get_src_space_pc(self):
-        return self.src_space_points
-
-    def get_vol_src_pc(
-        self,
-        include_non_cortical=True,
-        include_whitematter=False,
-        hemisphere=None,  # NOTE: include_regions could be added
-    ):
-        if hemisphere is not None and hemisphere not in ["Left", "Right"]:
-            raise ValueError(
-                f"Invalid hemisphere {hemisphere=} should be [Left, Right]"
-            )
-
-        cortical = self.label_details[self.label_details["cortical"] == True]
-        non_cortical = self.label_details[self.label_details["cortical"] == False]
-        whitematter = self.label_details[
-            self.label_details["Label Name"] == "White matter"
-        ]
-        empty = self.label_details[self.label_details["Label Name"] == "Empty"]
-
-        if include_non_cortical:
-            all_regions = pd.concat([cortical, non_cortical, whitematter])
-        else:
-            all_regions = pd.concat([cortical, whitematter])
-
-        # Drop 'Empty' region -> id 0
-        all_regions.drop(empty["CerebrA ID"], inplace=True, errors="ignore")
-        # Remove whitematter if needed
-        if not include_whitematter:
-            all_regions.drop(whitematter["CerebrA ID"], inplace=True, errors="ignore")
-        # Remove hemisphere if needed
-        if hemisphere is not None:
-            drop_hemisphere = "Left" if hemisphere == "Right" else "Right"
-            all_regions.drop(
-                all_regions[all_regions["hemisphere"] == drop_hemisphere]["CerebrA ID"],
-                inplace=True,
-            )
-
-        ids = all_regions["CerebrA ID"].values
-
-        return ids
-
-    # def get_src_space_volume(self):
-    #     if self.src_space_volume is None:
-    #         src_space_pc = self.get_src_space_pc()
-    #         self.src_space_volume = point_cloud_to_voxel(src_space_pc, vox_value=1)
-    #     return self.src_space_volume
-
-    # def modify_src_space(self, src_space):
-    #     new_inuse = []
-    #     for i, is_inuse in enumerate(src_space[0]["inuse"]):
-    #         # Do not modify not in use
-    #         if not is_inuse:
-    #             new_inuse.append(0)
-    #             continue
-    #         # If used, check whether it falls outside the brain
-    #         pt = self.src_vertex_index_to_ras_voxel(i)
-    #         region_id = self.get_region_id_from_point(pt)
-    #         if region_id != 0:
-    #             new_inuse.append(1)
-    #         else:
-    #             new_inuse.append(0)
-    #     src_space[0]["inuse"] = np.array(new_inuse)
-    #     src_space[0]["vertno"] = np.where(src_space[0]["inuse"])[0]
-    #     src_space[0]["nuse"] = len(src_space[0]["vertno"])
-    #     src_space[0]["neighbor_vert"] = get_neighbors(src_space[0])
-
-    #     return src_space
-
-    # Functions
     def get_region_id_from_point(self, point):
         point = np.array(point).astype(int)
         region_id = self.cerebra_volume[point[0], point[1], point[2]]
@@ -409,10 +345,10 @@ class CerebrA(BaseConfig):
     # Find points for each region. Should only be called once per region
     # Then, a sparse representation of the region data is stored/loaded as a .npy file
     def calculate_points_from_region_id(self, region_id):
-        return np.array(np.where(self.cerebra_volume == region_id)).T
+        return np.array(np.where(self.cerebra_volume == region_id), dtype=np.uint8).T
 
     def get_points_from_region_id(self, region_id):
-        return self.volume_data_sparse[region_id]
+        return self.cerebra_sparse[region_id]
 
     def get_n_points_from_region_id(self, region_id):
         if region_id == 0:
@@ -492,6 +428,7 @@ class CerebrA(BaseConfig):
             centroid = pt
         return centroid
 
+    # * PLOTTING
     def prepare_plot_data_2d(
         self,
         plot_src_space: bool = False,
@@ -663,7 +600,7 @@ class CerebrA(BaseConfig):
 
         src_space_pc = None
         if plot_src_space:
-            src_space_pc = self.get_src_space_pc()
+            src_space_pc = self.src_space_points
 
         volume_colors = None
         if plot_cortical:
@@ -758,6 +695,33 @@ def get_label_details(path):
     return preprocess_label_details(pd.read_csv(path))
 
 
+def get_cerebra_volume(cerebra_mgz, wm_mgz):
+    """
+    Processes cerebra and white matter medical image volumes to integrate
+    white matter information into the cerebra volume.
+
+    This function:
+    1. Retrieves the volume data and affine matrices for both cerebra and white matter images in RAS coordinate frame.
+    2. Modifies the cerebra volume by adding a specific label (103) to represent white matter regions
+       that are not already labeled in the cerebra volume.
+
+    Args:
+        cerebra_mgz (str): The file path of the cerebra medical image volume.
+        wm_mgz (str): The file path of the white matter medical image volume.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: A tuple containing the modified cerebra volume data and its affine matrix.
+    """
+    cerebra_volume, cerebra_affine = get_volume_ras(cerebra_mgz)
+    wm_volume, _ = get_volume_ras(wm_mgz)
+
+    # Add whitematter to volume data
+    cerebra_volume[(wm_volume != 0) & (cerebra_volume == 0)] = 103
+    return cerebra_volume, cerebra_affine
+
+
 if __name__ == "__main__":
-    setup_logging()
-    cerebra = CerebrA(source_space_include_non_cortical=False)
+    from .utils import setup_logging
+
+    setup_logging(level="DEBUG")
+    cerebra = CerebrA()

@@ -275,22 +275,22 @@ def point_cloud_to_voxel(
     return voxel_grid
 
 
-def point_cloud_to_voxel_lia(
-    point_cloud: np.ndarray, dtype=np.uint8, vox_value: int = 1
-) -> np.ndarray:
-    # Initialize a voxel grid of the specified size filled with zeros
-    voxel_grid = np.zeros((256, 256, 256), dtype=dtype)
+# def point_cloud_to_voxel_lia(
+#     point_cloud: np.ndarray, dtype=np.uint8, vox_value: int = 1
+# ) -> np.ndarray:
+#     # Initialize a voxel grid of the specified size filled with zeros
+#     voxel_grid = np.zeros((256, 256, 256), dtype=dtype)
 
-    # Iterate through each point in the point cloud
-    for point in point_cloud:
-        # Check if the point is within the valid range
-        if all(0 <= coord < 256 for coord in point):
-            # Convert the floating point coordinates to integers
-            l, i, a = map(int, point)
-            # Set the corresponding voxel to 1
-            voxel_grid[x, y, z] = vox_value
+#     # Iterate through each point in the point cloud
+#     for point in point_cloud:
+#         # Check if the point is within the valid range
+#         if all(0 <= coord < 256 for coord in point):
+#             # Convert the floating point coordinates to integers
+#             l, i, a = map(int, point)
+#             # Set the corresponding voxel to 1
+#             voxel_grid[x, y, z] = vox_value
 
-    return voxel_grid
+#     return voxel_grid
 
 
 # Helper functions
@@ -322,6 +322,29 @@ def inspect_img(path):
     logging.info(f"Coordinate frame: {''.join(codes)}")
     logging.info(f"\n{img.affine}")
     return img, data
+
+
+def get_volume_ras(path, dtype=np.uint8):
+    """
+    Loads a medical image volume from the given path and converts its coordinate frame from LIA to RAS.
+
+    This function:
+    1. Loads the volume using nibabel.
+    2. Converts the volume's coordinate frame from LIA (Left, Inferior, Anterior) to RAS (Right, Anterior, Superior)
+       using the move_volume_from_lia_to_ras function.
+
+    Args:
+        path (str): The file path of the medical image volume.
+        dtype (type, optional): The data type to be used for the volume data. Defaults to np.uint8.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: A tuple containing the transformed volume data and its affine matrix.
+    """
+    img = nib.load(path)  # All volumes are in LIA coordinate frame
+    volume, affine = move_volume_from_lia_to_ras(
+        np.array(img.dataobj, dtype=dtype), img.affine
+    )
+    return volume, affine
 
 
 if __name__ == "__main__":
