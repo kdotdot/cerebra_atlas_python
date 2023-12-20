@@ -1,5 +1,5 @@
 ,Mindboggle ID,Label Name,CerebrA ID,hemisphere,cortical,color
-0,0.0,Empty,0,,False,#000000
+0,0.0,Empty,0,,,#000000
 1,2027.0,Rostral Middle Frontal,1,Right,True,#ff001e
 2,631.0,Vermal lobules VI-VII,2,Right,False,#ff0013
 3,2009.0,Inferior temporal,3,Right,True,#ff0003
@@ -102,4 +102,4 @@
 100,50.0,Caudate,100,Left,False,#ff00e5
 101,630.0,Vermal lobules I-V,101,Left,False,#ff00d4
 102,1031.0,Supramarginal,102,Left,True,#ff00ca
-103,0.0,White matter,103,,False,#ffdddd
+103,0.0,White matter,103,,,#ffdddd

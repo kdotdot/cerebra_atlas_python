@@ -70,6 +70,7 @@ class CerebrA(BaseConfig):
         self._src_space_n_points_per_region: np.ndarray = None
         self._src_space_n_total_points: int = None
         self._src_space_mask: np.ndarray = None
+        self._src_space_norm: np.ndarray = None
         self._bem_surfaces: np.ndarray = None
         self._bem_volume: np.ndarray = None
 
@@ -162,6 +163,15 @@ class CerebrA(BaseConfig):
     @property
     def src_space_n_total_points(self):
         return len(self.src_space_points)
+
+    @property
+    def src_space_norm(self):
+        if self._src_space_norm is None:
+            norm = self.src_space_n_points_per_region.copy()
+            norm[1:-1] = self.src_space_n_total_points / norm[1:-1]
+            norm = (norm - norm.min()) / (norm.max() - norm.min())
+            self._src_space_norm = norm
+        return self._src_space_norm
 
     @property
     def bem_surfaces(self):
@@ -670,10 +680,10 @@ def preprocess_label_details(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[mask, "Mindboggle ID"] = df.loc[mask, "Mindboggle ID"] - 1000
 
     # Add white matter to label details
-    df.loc[len(df.index)] = [0, "White matter", 103, "", False]
+    df.loc[len(df.index)] = [0, "White matter", 103, pd.NA, pd.NA]
 
     # Add 'empty' to label details
-    df.loc[len(df.index)] = [0, "Empty", 0, "", False]
+    df.loc[len(df.index)] = [0, "Empty", 0, pd.NA, pd.NA]
 
     df.sort_values(by=["CerebrA ID"], inplace=True)
     df.reset_index(inplace=True, drop=True)
