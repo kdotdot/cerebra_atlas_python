@@ -337,7 +337,7 @@ def get_cmap_colors(cmap_name="gist_rainbow", n_classes=103):
 
 def get_cmap_colors_hex(**kwargs):
     colors = get_cmap_colors()
-    return [rgb_to_hex_str(c) for c in colors]
+    return np.array([rgb_to_hex_str(c) for c in colors])
 
 
 def get_cmap():

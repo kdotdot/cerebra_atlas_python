@@ -18,7 +18,7 @@ from .plotting import (
     plot_brain_slice_2d,
     get_cmap_colors_hex,
 )
-from .config import BaseConfig
+from .config import Config
 from .mni_average import MNIAverage
 from .utils import (
     move_volume_from_lia_to_ras,
@@ -29,31 +29,24 @@ from .utils import (
     get_volume_ras,
 )
 
+logger = logging.getLogger(__name__)
 
-class CerebrA(BaseConfig):
+
+class CerebrA(Config):
     def __init__(
         self,
-        config_path=op.dirname(__file__) + "/config.ini",
+        config_path=None,
         mni_average=None,
         MNIAverageKwArgs=None,
         **kwargs,
     ):
-        self.cerebra_output_path: str = None
-        self.cerebra_data_path: str = None
-        self.source_space_grid_size: int = None
-        self.source_space_include_wm: bool = None
-        self.source_space_include_non_cortical = None
-        default_config = {
-            "cerebra_output_path": "./generated/cerebra",
-            "cerebra_data_path": op.dirname(__file__) + "/cerebra_data",
-            "source_space_grid_size": 3,  # mm
-            "source_space_include_wm": False,
-            "source_space_include_non_cortical": True,
-        }
-
+        self.cerebra_output_path: str = "./generated/cerebra"
+        self.cerebra_data_path: str = op.dirname(__file__) + "/cerebra_data"
+        self.source_space_grid_size: int = 3
+        self.source_space_include_wm: bool = False
+        self.source_space_include_non_cortical = True
         super().__init__(
-            parent_name=self.__class__.__name__,
-            default_config=default_config,
+            class_name=self.__class__.__name__,
             config_path=config_path,
             **kwargs,
         )
@@ -188,7 +181,7 @@ class CerebrA(BaseConfig):
     # * SETTERS
     def _set_cerebra_sparse(self):
         if not op.exists(self._cerebra_sparse_path):
-            logging.info("Generating sparse representation of Cerebra volume data...")
+            logger.info("Generating sparse representation of Cerebra volume data...")
             self._cerebra_sparse = {
                 region_id: self.calculate_points_from_region_id(region_id)
                 for region_id in self.region_ids
@@ -203,7 +196,7 @@ class CerebrA(BaseConfig):
 
     def _set_src_space(self):
         if not op.exists(self._src_space_path):
-            logging.info("Generating new source space %s {self._src_space_path}")
+            logger.info("Generating new source space %s {self._src_space_path}")
             normals = np.repeat([[0, 0, 1]], self.src_space_n_total_points, axis=0)
 
             rr = point_cloud_to_voxel(self.src_space_points)
@@ -222,7 +215,7 @@ class CerebrA(BaseConfig):
             self._src_space = mne.setup_volume_source_space(pos=pos)
             self._src_space.save(self._src_space_path, overwrite=True, verbose=False)
         else:
-            logging.info("Loading source space from disk | %s ", self._src_space_path)
+            logger.info("Loading source space from disk | %s ", self._src_space_path)
             self._src_space = mne.read_source_spaces(self._src_space_path)
 
     def _set_src_space_mask(self):
@@ -384,7 +377,7 @@ class CerebrA(BaseConfig):
 
         region_id = self.get_region_id_from_point(pt)
         if region_id != 103 and region_id != 0:
-            logging.warning(
+            logger.warning(
                 "Attempting to get closest region to whitematter from a non-whitematter region -> %s",
                 region_id,
             )
@@ -411,10 +404,30 @@ class CerebrA(BaseConfig):
                     success = True
                     return success, pt2, region2
 
-        logging.warning(
+        logger.warning(
             "Get_closest_region_to_whitematter unable to find close region %s", n_max
         )
         return success, pt, region_id
+    
+    def get_cortical_region_ids(self, hemisphere=None):
+
+        mask = self.label_details["cortical"].fillna(False)
+        if hemisphere is not None:
+            if hemisphere == "left":
+                mask = mask & (self.label_details["hemisphere"]=="Left")
+            elif hemisphere == "right":
+                mask = mask & (self.label_details["hemisphere"]=="Right")
+            else:
+                raise ValueError(f"Unknown hemisphere {hemisphere=}")
+        
+        cortical_labels = self.label_details[mask]["CerebrA ID"].to_numpy()
+        return cortical_labels
+    
+    def get_visual_cortex_region_ids(self):
+        
+        perception_visual_ambient = np.array([9,31,60,82])
+
+        return perception_visual_ambient
 
     def find_region_centroid_from_name(self, region_name):
         region_id = self.get_region_id_from_region_name(region_name)
@@ -430,11 +443,11 @@ class CerebrA(BaseConfig):
                 centroid
             )
             if not success:
-                logging.error(
+                logger.error(
                     "Unable to find closest region to whitematter from region centroid"
                 )
             elif closest_region_id != region_id:
-                logging.warning("Region centroid is outside of region?")
+                logger.warning("Region centroid is outside of region?")
             centroid = pt
         return centroid
 
@@ -731,5 +744,7 @@ def get_cerebra_volume(cerebra_mgz, wm_mgz):
 
 
 if __name__ == "__main__":
+    from core.utils import setup_logging
 
+    setup_logging(level="DEBUG")
     cerebra = CerebrA()

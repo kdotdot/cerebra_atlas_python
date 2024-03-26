@@ -4,32 +4,24 @@ This module provides a class for configuring class attributes dinamically
 import os
 import os.path as op
 import logging
-from abc import ABC, abstractmethod
 from typing import Tuple, Dict, Optional, Any
 from configparser import ConfigParser, InterpolationMissingOptionError
-
+from abc import ABC
 
 def read_config_as_dict(
-    file_path: str = op.dirname(__file__) + "/config.ini", section: Optional[str] = None
+    file_path: str, section: Optional[str] = None
 ) -> Tuple[Dict[str, str], bool]:
     """
     Reads a configuration file and returns its contents as a dictionary.
 
-    This function reads the specified configuration file and parses its contents.
-    If a specific section is requested, only that section is returned. Otherwise,
-    all sections are returned. Additionally, environment variables are used as
-    default values.
-
     Args:
-        file_path (str): Path to the configuration file. Defaults to 'config.ini' in the current directory.
+        file_path (str): Path to the configuration file.
         section (Optional[str]): Specific section to read from the configuration file.
                                     If None, all sections are read. Defaults to None.
 
     Returns:
         Tuple[Dict[str, Dict[str, str]], bool]: A tuple containing a dictionary of configuration values
-                                                and a boolean indicating the success of reading the file.
-                                                The dictionary is structured with sections as keys and
-                                                dictionaries of the section's key-value pairs as values.
+                                                and a boolean indicating success.
     """
 
     # ALLOW MISSING ENV VARIABLES (env variables which are empty throw InterpolationMissingOptionError)
@@ -42,13 +34,17 @@ def read_config_as_dict(
     config_dict: Dict[str, Dict[str, Any]] = {}
     success: bool = True
 
-    if not op.exists(file_path):
-        logging.warning("Config file does not exist: %s", file_path)
+    if file_path is None or not op.exists(file_path):
+        if file_path is not None:
+            logging.warning("Config file does not exist: %s", file_path)
         success = False
         return config_dict, success
 
+
+    default_env = {env_k:env_v for env_k, env_v in os.environ.items() if ("%" not in env_k and "%" not in env_v)  }
+
     config_parser = ConfigParser()
-    config_parser.read_dict({"DEFAULT": os.environ})
+    config_parser.read_dict({"DEFAULT": default_env})
     config_parser.read(file_path)
 
     if section is None:
@@ -82,73 +78,80 @@ def read_config_as_dict(
 
     return config_dict, success
 
+def is_valid_config_file(path):
+    if not path.endswith(".ini"):
+        logging.debug("False, Config file must be a .ini file %s", path)
+        return False
+    if not op.exists(path):
+        logging.debug("False, Config file does not exist: %s", path)
+        return False
+    return True
 
-class BaseConfig(ABC):  # Abstract class
-    """
-    An abstract base class for configuration management in Python applications.
 
-    This class serves as a foundation for creating configuration management systems,
-    allowing configurations to be read from a file, using default values when necessary,
-    and supporting runtime parameter overrides.
 
-    Attributes:
-        name (str): The name of the parent class utilizing this configuration.
-    """
+def search_config_path(raise_on_missing_config_file: bool = False):    
+    config_path = None
+    # Use CONFIG env variable if set
+    if "CONFIG" in os.environ:
+        config_path = os.environ["CONFIG"]
+        if is_valid_config_file(config_path):
+            # logging.info("Using config file from env variable CONFIG %s", config_path)
+            return config_path
 
-    @abstractmethod
-    def __init__(
-        self,
-        parent_name: str,
-        default_config: Optional[Dict[str, Any]] = None,
-        config_path: Optional[str] = None,
-        **kwargs,
-    ):
-        """
-        Constructs a BaseConfig object with specified parameters and default settings.
-
-        Reads configuration from a file specific to the 'parent_name' class. If the file is
-        not found or is incomplete, it falls back to the provided default configuration.
-        Additional runtime parameters can override both file-based and default configurations.
-
-        Args:
-            parent_name (str): The name of the parent class for which the configuration is managed.
-            default_config (Optional[Dict[str, Any]]): A dictionary of default configuration values.
-                                                      Used if the configuration file is missing or incomplete.
-                                                      Defaults to None.
-            config_path (Optional[str]): Path to configuration file
-            **kwargs: Additional keyword arguments representing runtime configuration overrides.
-
-        Note:
-            The configuration values are set as instance attributes, making them directly accessible
-            as properties of the class instance.
-        """
-        default_config = default_config or {}
-
-        # Attempt to read the configuration
-        config, config_success = read_config_as_dict(
-            file_path=config_path, section=parent_name
-        )
-
-        # Choose config.ini over default_config
-        if not config_success:
-            # Use the provided default configuration if file reading is unsuccessful
-            config = default_config
-            if not config:
+    # If env is not set, use the first .ini found in current working dir
+    cwd = os.getcwd()
+    config_file_name = None
+    for fname in os.listdir(cwd):
+        if fname.endswith(".ini"):
+            if config_file_name is None:
+                config_file_name = fname
+            else:
                 logging.warning(
-                    "Config and default values were not provided for class %s",
-                    parent_name,
+                    "Multiple .ini files found in working directory. Using %s", config_file_name
                 )
-        # Update missing keys in the config with default values
-        for key, value in default_config.items():
-            if key not in config:
-                logging.debug(
-                    "Value for variable %s not provided in config.ini[%s]. Defaulting to %s=%s",
-                    key,
-                    parent_name,
-                    key,
-                    value,
-                )
-            config.setdefault(key, value)
+    if config_file_name is not None:
+        config_path = op.join(cwd, config_file_name)    
+        if is_valid_config_file(config_path):    
+            # logging.info("Using config %s from current working dir %s", config_file_name, cwd)
+            return config_path
+    # logging.info("Config file not found in current working dir %s", cwd)
+
+    # If no ini is found, use the default config.ini for the package 
+    config_path = op.dirname(__file__) + "/config.ini"
+    if is_valid_config_file(config_path):
+            # logging.info("Using default config from module's path %s", config_path)
+            return config_path
+
+    if raise_on_missing_config_file:
+        raise FileNotFoundError("No valid config file found")
+
+    return None
+
+def search_and_get_config():
+    config_path = search_config_path()
+    if config_path is not None:
+        config, success = read_config_as_dict(file_path=config_path)
+        return config if success else {}
+
+    return {}
+
+# IF NO CONFIG FILE IS FOUND, AND NO KWARGS ARE PROVIDED, DEFAULTS ARE USED
+# IF A CONFIG FILE IS FOUND, IT OVERRIDES DEFAULTS FOR PRESENT FIELDS
+# IF KWARGS ARE PROVIDED, OVERRIDE EVERYTHING ELSE
+
+# CONFIG FILES ARE REQUIRED!
+class Config(ABC):
+    def __init__(
+        self,class_name: str, config_path: Optional[str] = None, **kwargs):
+        if config_path is None:
+            config_path = search_config_path(raise_on_missing_config_file=True)
+
+        # Attempt to read configuration
+        config, config_success = read_config_as_dict(file_path=config_path, section=class_name)
+        if not config_success:
+            raise FileNotFoundError(f"Config file {config_path} not found for class {class_name}")
+        
+        assert config_success, f"Config file {config_path} not found for class {class_name}"
 
         # Override with any provided kwargs
         config.update(kwargs)
@@ -166,18 +169,7 @@ class BaseConfig(ABC):  # Abstract class
                 # Retain the original string value if eval fails
                 parsed_value = value
             setattr(self, key, parsed_value)
-        # Store the parent's name
-        self._baseconfig_parent_name = parent_name
-
-    @property
-    def name(self) -> str:
-        """Returns the name of the parent class.
-        Returns:
-            str: Name of the parent class
-        """
-        return self._baseconfig_parent_name
-
 
 if __name__ == "__main__":
-    read_config_as_dict()
-    read_config_as_dict(section="CerebrA")
+    config_path = search_config_path(raise_on_missing_config_file=True)
+    read_config_as_dict(file_path=config_path, section="HBNDataset")

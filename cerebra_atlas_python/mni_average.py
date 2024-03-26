@@ -10,26 +10,19 @@ import mne
 import nibabel as nib
 import numpy as np
 
-from cerebra_atlas_python.config import BaseConfig
+from core.config import Config
 
 
-class MNIAverage(BaseConfig):
-    def __init__(self, config_path=op.dirname(__file__) + "/config.ini", **kwargs):
-        self.mniaverage_output_path: str = None
-        self.bem_conductivity: Tuple[float, float, float] = None
-        self.bem_ico: int = None
-        self.cerebra_data_path: str = None
-        default_config = {
-            "mniaverage_output_path": "./mni_average",
-            "bem_conductivity": (0.33, 0.0042, 0.33),
-            "bem_ico": 4,
-            "cerebra_data_path": op.dirname(__file__) + "/cerebra_data",
-        }
-
+class MNIAverage(Config):
+    def __init__(self, config_path=None, **kwargs):
+        self.mniaverage_output_path: str = "./generated/mni_average"
+        self.bem_conductivity: Tuple[float, float, float] = (0.33, 0.0042, 0.33)
+        self.bem_ico: int = 4
+        self.cerebra_data_path: str = op.dirname(__file__) + "/cerebra_data"
+       
         super().__init__(
             config_path=config_path,
-            parent_name=self.__class__.__name__,
-            default_config=default_config,
+            class_name=self.__class__.__name__,
             **kwargs,
         )
 
@@ -91,7 +84,7 @@ class MNIAverage(BaseConfig):
         Returns:
             str: Enhanced name of the class instance, including BEM conductivity and icosahedron level.
         """
-        return f"{super().name}_{self.bem_conductivity_string}_ico_{self.bem_ico}"
+        return f"{self.bem_conductivity_string}_ico_{self.bem_ico}"
 
     @property
     def bem(self):
