@@ -731,7 +731,5 @@ def get_cerebra_volume(cerebra_mgz, wm_mgz):
 
 
 if __name__ == "__main__":
-    from .utils import setup_logging
 
-    setup_logging(level="DEBUG")
     cerebra = CerebrA()
