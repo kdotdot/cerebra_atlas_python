@@ -1,0 +1,105 @@
+,Mindboggle ID,Label Name,CerebrA ID,hemisphere,cortical,color
+0,0.0,Empty,0,,,#000000
+1,2027.0,Rostral Middle Frontal,1,Right,True,#ff001e
+2,631.0,Vermal lobules VI-VII,2,Right,False,#ff0013
+3,2009.0,Inferior temporal,3,Right,True,#ff0003
+4,58.0,Accumbens Area,4,Right,False,#ff0700
+5,44.0,Inferior Lateral Ventricle,5,Right,False,#ff1700
+6,2021.0,Pericalcarine,6,Right,True,#ff2200
+7,2012.0,Lateral Orbitofrontal,7,Right,True,#ff3200
+8,2026.0,Rostral Anterior Cingulate,8,Right,True,#ff3d00
+9,2029.0,Superior Parietal,9,Right,True,#ff4d00
+10,2008.0,Inferior Parietal,10,Right,True,#ff5800
+11,16.0,Brainstem,11,Right,False,#ff6800
+12,2013.0,Lingual,12,Right,True,#ff7300
+13,2022.0,Postcentral,13,Right,True,#ff8300
+14,2034.0,Transverse Temporal,14,Right,True,#ff8e00
+15,2014.0,Medial Orbitofrontal,15,Right,True,#ff9e00
+16,2017.0,Paracentral,16,Right,True,#ffa900
+17,85.0,Optic Chiasm,17,Right,False,#ffb900
+18,2016.0,Parahippocampal,18,Right,True,#ffc400
+19,54.0,Amygdala,19,Right,False,#ffd400
+20,632.0,Vermal lobules VIII-X,20,Right,False,#ffdf00
+21,51.0,Putamen,21,Right,False,#ffef00
+22,2020.0,Pars Triangularis,22,Right,True,#fffa00
+23,2035.0,Insula,23,Right,True,#f3ff00
+24,2007.0,Fusiform,24,Right,True,#e8ff00
+25,92.0,Basal Forebrain,25,Right,False,#d8ff00
+26,60.0,Ventral Diencephalon,26,Right,False,#cdff00
+27,52.0,Pallidum,27,Right,False,#bdff00
+28,2015.0,Middle Temporal,28,Right,True,#b2ff00
+29,14.0,Third Ventricle,29,Right,False,#a2ff00
+30,2002.0,Caudal Anterior Cingulate,30,Right,True,#97ff00
+31,2025.0,Precuneus,31,Right,True,#87ff00
+32,2018.0,Pars Opercularis,32,Right,True,#7cff00
+33,2010.0,Isthmus Cingulate,33,Right,True,#6cff00
+34,2011.0,Lateral Occipital,34,Right,True,#61ff00
+35,2024.0,Precentral,35,Right,True,#56ff00
+36,2006.0,Entorhinal,36,Right,True,#46ff00
+37,15.0,Fourth Ventricle,37,Right,False,#3bff00
+38,2028.0,Superior Frontal,38,Right,True,#2bff00
+39,46.0,Cerebellum White Matter,39,Right,False,#20ff00
+40,49.0,Thalamus,40,Right,False,#10ff00
+41,43.0,Lateral Ventricle,41,Right,False,#05ff00
+42,2003.0,Caudal Middle Frontal,42,Right,True,#00ff0a
+43,2005.0,Cuneus,43,Right,True,#00ff15
+44,2019.0,Pars Orbitalis,44,Right,True,#00ff25
+45,2030.0,Superior Temporal,45,Right,True,#00ff30
+46,45.0,Cerebellum Gray Matter,46,Right,False,#00ff40
+47,2023.0,Posterior Cingulate,47,Right,True,#00ff4b
+48,53.0,Hippocampus,48,Right,False,#00ff5b
+49,50.0,Caudate,49,Right,False,#00ff66
+50,630.0,Vermal lobules I-V,50,Right,False,#00ff76
+51,2031.0,Supramarginal,51,Right,True,#00ff81
+52,1027.0,Rostral Middle Frontal,52,Left,True,#00ff91
+53,631.0,Vermal lobules VI-VII,53,Left,False,#00ff9b
+54,1009.0,Inferior temporal,54,Left,True,#00ffac
+55,58.0,Accumbens Area,55,Left,False,#00ffb6
+56,44.0,Inferior Lateral Ventricle,56,Left,False,#00ffc6
+57,1021.0,Pericalcarine,57,Left,True,#00ffd1
+58,1012.0,Lateral Orbitofrontal,58,Left,True,#00ffe1
+59,1026.0,Rostral Anterior Cingulate,59,Left,True,#00ffec
+60,1029.0,Superior Parietal,60,Left,True,#00fffc
+61,1008.0,Inferior Parietal,61,Left,True,#00f6ff
+62,16.0,Brainstem,62,Left,False,#00e6ff
+63,1013.0,Lingual,63,Left,True,#00dbff
+64,1022.0,Postcentral,64,Left,True,#00caff
+65,1034.0,Transverse Temporal,65,Left,True,#00c0ff
+66,1014.0,Medial Orbitofrontal,66,Left,True,#00afff
+67,1017.0,Paracentral,67,Left,True,#00a4ff
+68,85.0,Optic Chiasm,68,Left,False,#0094ff
+69,1016.0,Parahippocampal,69,Left,True,#0089ff
+70,54.0,Amygdala,70,Left,False,#007eff
+71,632.0,Vermal lobules VIII-X,71,Left,False,#006eff
+72,51.0,Putamen,72,Left,False,#0063ff
+73,1020.0,Pars Triangularis,73,Left,True,#0053ff
+74,1035.0,Insula,74,Left,True,#0048ff
+75,1007.0,Fusiform,75,Left,True,#0038ff
+76,92.0,Basal Forebrain,76,Left,False,#002dff
+77,60.0,Ventral Diencephalon,77,Left,False,#001dff
+78,52.0,Pallidum,78,Left,False,#0012ff
+79,1015.0,Middle Temporal,79,Left,True,#0001ff
+80,14.0,Third Ventricle,80,Left,False,#0800ff
+81,1002.0,Caudal Anterior Cingulate,81,Left,True,#1900ff
+82,1025.0,Precuneus,82,Left,True,#2400ff
+83,1018.0,Pars Opercularis,83,Left,True,#3400ff
+84,1010.0,Isthmus Cingulate,84,Left,True,#3f00ff
+85,1011.0,Lateral Occipital,85,Left,True,#4f00ff
+86,1024.0,Precentral,86,Left,True,#5a00ff
+87,1006.0,Entorhinal,87,Left,True,#6a00ff
+88,15.0,Fourth Ventricle,88,Left,False,#7500ff
+89,1028.0,Superior Frontal,89,Left,True,#8500ff
+90,46.0,Cerebellum White Matter,90,Left,False,#9000ff
+91,49.0,Thalamus,91,Left,False,#a100ff
+92,43.0,Lateral Ventricle,92,Left,False,#ac00ff
+93,1003.0,Caudal Middle Frontal,93,Left,True,#bc00ff
+94,1005.0,Cuneus,94,Left,True,#c700ff
+95,1019.0,Pars Orbitalis,95,Left,True,#d700ff
+96,1030.0,Superior Temporal,96,Left,True,#e200ff
+97,45.0,Cerebellum Gray Matter,97,Left,False,#f200ff
+98,1023.0,Posterior Cingulate,98,Left,True,#fd00ff
+99,53.0,Hippocampus,99,Left,False,#ff00f0
+100,50.0,Caudate,100,Left,False,#ff00e5
+101,630.0,Vermal lobules I-V,101,Left,False,#ff00d4
+102,1031.0,Supramarginal,102,Left,True,#ff00ca
+103,0.0,White matter,103,,,#ffdddd
