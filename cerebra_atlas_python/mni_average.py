@@ -10,7 +10,7 @@ import mne
 import nibabel as nib
 import numpy as np
 
-from core.config import Config
+from .config import Config
 
 
 class MNIAverage(Config):
@@ -64,9 +64,9 @@ class MNIAverage(Config):
         # Mapping for making sure bem indices refer to the same surface every time
         self.bem_names = {1: "outer_skin", 2: "outer_skull", 3: "inner_skull"}
 
-        self._set_fiducials()
-        self._set_head_mri_t()
-        self._set_mri_ras_t()
+        # self._set_fiducials()
+        # self._set_head_mri_t()
+        # self._set_mri_ras_t()
 
     # * PROPERTIES
     @property

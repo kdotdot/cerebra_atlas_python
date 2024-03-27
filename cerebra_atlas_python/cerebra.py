@@ -719,22 +719,6 @@ def get_label_details(path):
 
 
 def get_cerebra_volume(cerebra_mgz, wm_mgz):
-    """
-    Processes cerebra and white matter medical image volumes to integrate
-    white matter information into the cerebra volume.
-
-    This function:
-    1. Retrieves the volume data and affine matrices for both cerebra and white matter images in RAS coordinate frame.
-    2. Modifies the cerebra volume by adding a specific label (103) to represent white matter regions
-       that are not already labeled in the cerebra volume.
-
-    Args:
-        cerebra_mgz (str): The file path of the cerebra medical image volume.
-        wm_mgz (str): The file path of the white matter medical image volume.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing the modified cerebra volume data and its affine matrix.
-    """
     cerebra_volume, cerebra_affine = get_volume_ras(cerebra_mgz)
     wm_volume, _ = get_volume_ras(wm_mgz)
 

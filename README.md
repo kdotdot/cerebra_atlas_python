@@ -1,8 +1,19 @@
+<H1 style="text-align: center;">Cerebra atlas Python</H1>
+
+
+
+
+<b>cerebra_atlas_python</b> offers Python 
+
+<a href="https://nist.mni.mcgill.ca/cerebra/">CerebrA</a> is an accurate non-linear registration of cortical and subcortical labelling from <a href="https://nist.mni.mcgill.ca/cerebra/">Mindboggle 101</a> to the <a href="https://nist.mni.mcgill.ca/cerebra/">symmetric MNI-ICBM2009c atlas</a>. <b>cerebra_atlas_python</b> abstracts the following:
+
+
+
 cerebra_atlas_python functionality
 
 abstract coordinate frame transformations
 
-CerebrA is an accurate non-linear registration of cortical and subcortical labelling from Mindboggle 101 to the symmetric MNI-ICBM2009c atlas followed by manual editing.
+https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/
 
 <div style="display:flex;align-items:center;justify-content:center;background-color:aliceblue;padding:25px;flex-direction:column"><img src="./images/example.png" alt="BEM MANUAL EDIT" width=50%></img><br/><small>Cerebra Atlas</small></div>
 
@@ -37,14 +48,39 @@ $ python -m build
 $ pip install .
 ```
 
-### MANUALLY GENERATING BRAIN VOLUMES (optional)
+### COMPUTING BRAIN DATA (optional)
 
-##### Data source:
+The whole data folder generation (cerebra_data) process is outlined in notebooks/0.0-generate-cerebra-data.ipynb
+
+<ol>
+  <li>Use Freesurfer to perform cortical reconstruction and generate Boundary Element Model (BEM) surfaces</li>
+  <li>Convert CerebrA volume to T1w scan coordinate frame </li>
+  <li>Manually align fiducials(?) </li>
+</ol>
+
+#### Data sources:
 
 Original datasets used to build the processed versions of the volumes.
 
 - [CerebrA](https://gin.g-node.org/anamanera/CerebrA/src/master/): $CEREBRA_DIR
 - [ICBM 2009c Nonlinear Symmetric [NIFTI]](https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/): $ICBM_DIR
+
+#### Steps:
+
+##### 1) Use Freesurfer to perform cortical reconstruction and generate Boundary Element Model (BEM) surfaces
+<ul>
+  <li>Perform cortical reconstruction from MRI scan using recon-all</li>
+
+`$ recon-all -subjid icbm152 -i $ICBM_DIR/mni_icbm152_t1_tal_nlin_sym_09c.nii -all`
+  <li>Generate boundary element model (BEM) using watershed algoritm</li>
+  <li>Manually edit BEM surfaces </li>
+</ul>
+
+##### 2) Convert CerebrA volume to T1w scan coordinate frame
+
+
+
+
 
 ##### (FREESURFER) Cortical reconstruction of ICBM 2009c Nonlinear Symmetric:
 
