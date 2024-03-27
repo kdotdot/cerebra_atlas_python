@@ -8,6 +8,8 @@ from typing import Tuple, Dict, Optional, Any
 from configparser import ConfigParser, InterpolationMissingOptionError
 from abc import ABC
 
+logger = logging.getLogger(__name__)
+
 def read_config_as_dict(
     file_path: str, section: Optional[str] = None
 ) -> Tuple[Dict[str, str], bool]:
@@ -95,7 +97,7 @@ def search_config_path(raise_on_missing_config_file: bool = False):
     if "CONFIG" in os.environ:
         config_path = os.environ["CONFIG"]
         if is_valid_config_file(config_path):
-            # logging.info("Using config file from env variable CONFIG %s", config_path)
+            logger.debug("Using config file from env variable CONFIG %s", config_path)
             return config_path
 
     # If env is not set, use the first .ini found in current working dir
@@ -112,18 +114,20 @@ def search_config_path(raise_on_missing_config_file: bool = False):
     if config_file_name is not None:
         config_path = op.join(cwd, config_file_name)    
         if is_valid_config_file(config_path):    
-            # logging.info("Using config %s from current working dir %s", config_file_name, cwd)
+            logger.debug("Using config %s from current working dir %s", config_file_name, cwd)
             return config_path
-    # logging.info("Config file not found in current working dir %s", cwd)
+    logger.debug("Config file not found in current working dir %s", cwd)
 
     # If no ini is found, use the default config.ini for the package 
     config_path = op.dirname(__file__) + "/config.ini"
     if is_valid_config_file(config_path):
-            # logging.info("Using default config from module's path %s", config_path)
+            logger.debug("Using default config from module's path %s", config_path)
             return config_path
 
     if raise_on_missing_config_file:
         raise FileNotFoundError("No valid config file found")
+
+    logger.warning("No config file was found")
 
     return None
 
@@ -152,6 +156,8 @@ class Config(ABC):
             raise FileNotFoundError(f"Config file {config_path} not found for class {class_name}")
         
         assert config_success, f"Config file {config_path} not found for class {class_name}"
+
+        self.config_path = config_path
 
         # Override with any provided kwargs
         config.update(kwargs)
