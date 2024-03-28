@@ -231,6 +231,12 @@ class CerebrA(Config):
         cortical_labels = self.label_details[mask]["CerebrA ID"].to_numpy()
         return cortical_labels
     
+    def get_non_cortical_region_ids(self, hemisphere=None):
+
+        mask = ~(self.label_details["cortical"].fillna(True))
+        non_cortical_labels = self.label_details[mask]["CerebrA ID"].to_numpy()
+        return non_cortical_labels
+    
     def get_visual_cortex_region_ids(self):
         
         perception_visual_ambient = np.array([9,31,60,82])
