@@ -12,7 +12,7 @@ import numpy as np
 
 from .config import Config
 
-
+# Uses freesurfer
 class MNIAverage(Config):
     def __init__(self, config_path=None, **kwargs):
         self.mniaverage_output_path: str = "./generated/mni_average"
@@ -43,7 +43,7 @@ class MNIAverage(Config):
 
         # Input paths
         self.subject_name = "icbm152"
-        self.subjects_dir = op.join(self.cerebra_data_path, "subjects")
+        self.subjects_dir = op.join(self.cerebra_data_path, "FreeSurfer/subjects")
         self.subject_dir = op.join(self.subjects_dir, self.subject_name)
         self.bem_folder_path = op.join(self.subject_dir, "bem")
         self.fiducials_path = op.join(

@@ -16,6 +16,9 @@ ori_names = dict(
     P="posterior", A="anterior", I="inferior", S="superior", L="left", R="right"
 )
 
+cortical_color = "#9EC8B9"
+non_cortical_color = "#1B4242"
+
 
 # https://github.com/RayleighLord/RayleighLordAnimations/blob/master/publication%20quality%20figures/fig_config.py
 def figure_features(tex=True, font="serif", dpi=180):
@@ -360,6 +363,9 @@ def plot_brain_slice_2d(
     src_space_points=None,
     bem_volume=None,
     plot_highlighted_region=None,
+    plot_highlighted_regions=None,
+    highlighted_region_names=None,
+    highlighted_region_centroids=None,
     region_centroid=None,
     pt_dist=None,
     cmap_name="default",
@@ -514,6 +520,20 @@ def plot_brain_slice_2d(
             alpha_values = np.ones(104) * 0.1
             alpha_values[plot_highlighted_region] = 1
 
+        if plot_highlighted_regions:
+            alpha_values = np.ones(104) * 0.05
+            alpha_values[plot_highlighted_regions] = 1
+            if highlighted_region_names is not None and highlighted_region_centroids is not None:
+                for i, name in enumerate(highlighted_region_names):
+                    if plot_highlighted_regions[i] in cerebra_slice:
+                        ax.text(
+                            highlighted_region_centroids[i][x_label],
+                            highlighted_region_centroids[i][y_label],
+                            f"{name}",
+                            c="white" if plot_empty else "black",
+                            size=20 - len(plot_highlighted_regions)
+                        )
+
         new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
             cerebra_slice,
             axis=axis,
@@ -657,7 +677,7 @@ def orthoview(
     return fig, axs
 
 
-def get_3d_fig_ax():
+def get_3d_fig_ax(min_ax_size=None):
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
 
@@ -665,9 +685,10 @@ def get_3d_fig_ax():
     ax.set_ylabel("Y (A)")
     ax.set_zlabel("Z (S)")
 
-    # ax.set_xlim([0, 256])
-    # ax.set_ylim([0, 256])
-    # ax.set_zlim([0, 256])
+
+    ax.set_xlim([0, 256])
+    ax.set_ylim([0, 256])
+    ax.set_zlim([0, 256])
 
     return fig, ax
 
@@ -675,7 +696,7 @@ def get_3d_fig_ax():
 def plot_volume_3d(
     volume,
     plot_whitematter=False,
-    region_pts=None,
+    highlighted_regions_pts=None,
     density=8,
     alpha=0.1,
     ax=None,
@@ -695,21 +716,22 @@ def plot_volume_3d(
 
     cmap_colors = get_cmap_colors()
 
-    if region_pts is not None:
-        xs = []
-        ys = []
-        zs = []
-        cs = []
-        first_pt = region_pts[0]
-        val = int(volume[first_pt[0], first_pt[1], first_pt[2]])
-        # Not all points are plotted for performance reasons
-        # The density parameter specifies the gap between points
-        for i in range(0, len(region_pts), density):
-            xs.append(region_pts.T[0][i])
-            ys.append(region_pts.T[1][i])
-            zs.append(region_pts.T[2][i])
-        # xs, ys, zs = region_pts.T[0], region_pts.T[1], region_pts.T[2]
-        ax.scatter(xs, ys, zs, c=cmap_colors[val], alpha=alpha)
+    if highlighted_regions_pts is not None:
+        for region_pts in highlighted_regions_pts:
+            xs = []
+            ys = []
+            zs = []
+            cs = []
+            first_pt = region_pts[0]
+            val = int(volume[first_pt[0], first_pt[1], first_pt[2]])
+            # Not all points are plotted for performance reasons
+            # The density parameter specifies the gap between points
+            for i in range(0, len(region_pts), density):
+                xs.append(region_pts.T[0][i])
+                ys.append(region_pts.T[1][i])
+                zs.append(region_pts.T[2][i])
+            # xs, ys, zs = region_pts.T[0], region_pts.T[1], region_pts.T[2]
+            ax.scatter(xs, ys, zs, color=cmap_colors[val], alpha=alpha)
 
     if plot_regions:
         xs = []
@@ -731,7 +753,7 @@ def plot_volume_3d(
                         ys.append(y)
                         zs.append(z)
 
-        ax.scatter(xs, ys, zs, c=cs, alpha=0.1 if region_pts is not None else alpha)
+        ax.scatter(xs, ys, zs, c=cs, alpha=0.1 if highlighted_regions is not None else alpha)
 
     if bem_surfaces is not None:
         xs = bem_surfaces[2].T[0]
