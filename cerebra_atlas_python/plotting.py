@@ -363,6 +363,9 @@ def plot_brain_slice_2d(
     src_space_points=None,
     bem_volume=None,
     plot_highlighted_region=None,
+    plot_highlighted_regions=None,
+    highlighted_region_names=None,
+    highlighted_region_centroids=None,
     region_centroid=None,
     pt_dist=None,
     cmap_name="default",
@@ -516,6 +519,20 @@ def plot_brain_slice_2d(
             ), "If plot_highlighted_region = (int) region_centroid should also be provided"
             alpha_values = np.ones(104) * 0.1
             alpha_values[plot_highlighted_region] = 1
+
+        if plot_highlighted_regions:
+            alpha_values = np.ones(104) * 0.05
+            alpha_values[plot_highlighted_regions] = 1
+            if highlighted_region_names is not None and highlighted_region_centroids is not None:
+                for i, name in enumerate(highlighted_region_names):
+                    if plot_highlighted_regions[i] in cerebra_slice:
+                        ax.text(
+                            highlighted_region_centroids[i][x_label],
+                            highlighted_region_centroids[i][y_label],
+                            f"{name}",
+                            c="white" if plot_empty else "black",
+                            size=20 - len(plot_highlighted_regions)
+                        )
 
         new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
             cerebra_slice,

@@ -231,6 +231,12 @@ class CerebrA(Config):
         cortical_labels = self.label_details[mask]["CerebrA ID"].to_numpy()
         return cortical_labels
     
+    def get_non_cortical_region_ids(self, hemisphere=None):
+
+        mask = ~(self.label_details["cortical"].fillna(True))
+        non_cortical_labels = self.label_details[mask]["CerebrA ID"].to_numpy()
+        return non_cortical_labels
+    
     def get_visual_cortex_region_ids(self):
         
         perception_visual_ambient = np.array([9,31,60,82])
@@ -265,6 +271,7 @@ class CerebrA(Config):
         plot_src_space: bool = False,
         plot_distance_to_inner_skull: bool = False,
         plot_highlighted_region: int = None,
+        plot_highlighted_regions: int = None,
         plot_cortical: bool = None,
         **kwargs,
     ):
@@ -309,12 +316,17 @@ class CerebrA(Config):
             ]
             volume_colors = np.array(volume_colors)
 
+        t1_volume = None
+        if plot_t1_volume:
+            t1_volume = move_volume_from_lia_to_ras(self.mni_average.t1.dataobj)
+
         return (
             src_space_points,
             region_centroid,
             pt_dist,
             pt_text,
             volume_colors,
+            t1_volume,
         )
 
     def plot_data_2d(
@@ -323,6 +335,7 @@ class CerebrA(Config):
         plot_src_space: bool = False,
         plot_distance_to_inner_skull: bool = False,
         plot_highlighted_region: int = None,
+        plot_highlighted_regions: int = None,
         plot_cortical: bool = None,
         **kwargs,
     ):
@@ -332,10 +345,12 @@ class CerebrA(Config):
             pt_dist,
             pt_text,
             volume_colors,
+            t1_volume,
         ) = self.prepare_plot_data_2d(
             plot_src_space,
             plot_distance_to_inner_skull,
             plot_highlighted_region,
+            plot_highlighted_regions=plot_highlighted_regions,
             plot_cortical=plot_cortical,
             **kwargs,
         )
@@ -349,6 +364,7 @@ class CerebrA(Config):
                 region_centroid=region_centroid,
                 pt_text=pt_text,
                 volume_colors=volume_colors,
+                t1_volume=t1_volume,
                 **kwargs,
             )
             return fig, axs
@@ -363,6 +379,7 @@ class CerebrA(Config):
                 region_centroid=region_centroid,
                 pt_text=pt_text,
                 volume_colors=volume_colors,
+                t1_volume=t1_volume,
                 **kwargs,
             )
             return fig, ax
