@@ -596,7 +596,7 @@ def plot_brain_slice_2d(
                     verticalalignment="center",
                     horizontalalignment="center",
                 )
-                ax.scatter(x,y ,color=colors[region_id], s=16)
+                ax.scatter(x,y ,color=colors[highlighted_region_ids[r_id]], s=16)
                 # Plot straight line from point to centroid
                 ax.plot([x,region_centroid[x_label]],[y,region_centroid[y_label]],c="black",linewidth=0.5)
 

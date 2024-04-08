@@ -244,7 +244,7 @@ class CerebrA(Config):
         return perception_visual_ambient
 
     def get_cortical_id_from_region_id(self, region_id):
-        return np.where(self.get_cortical_region_ids() == region_id)[0][0]
+        return (np.where(self.get_cortical_region_ids() == region_id)[0][0]) + 1
 
 
     def find_region_centroid_from_name(self, region_name):
