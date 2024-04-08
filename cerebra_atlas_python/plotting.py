@@ -1,4 +1,6 @@
 """Plotting related utils"""
+import math
+import random
 from typing import Optional, Tuple, List
 import numpy as np
 import nibabel as nib
@@ -145,8 +147,8 @@ def get_2d_fig_ax(
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot()
 
-    ax.set_xlim([0, 256])
-    ax.set_ylim([0, 256])
+    ax.set_xlim([30, 226])
+    ax.set_ylim([30, 226])
 
     if use_latex_figures:
         figure_features()
@@ -360,10 +362,10 @@ def plot_brain_slice_2d(
     plot_empty=False,
     plot_affine=False,
     plot_planes=False,
+    plot_region_names=False,
     src_space_points=None,
     bem_volume=None,
-    plot_highlighted_region=None,
-    plot_highlighted_regions=None,
+    highlighted_region_ids=None,
     highlighted_region_names=None,
     highlighted_region_centroids=None,
     region_centroid=None,
@@ -397,6 +399,9 @@ def plot_brain_slice_2d(
             add_grid=add_grid,
         )
 
+    ax.set_xlim([30, 226])
+    ax.set_ylim([30, 226])
+
     # Configure ax
     ax_labels = ["X", "Y", "Z"]
 
@@ -414,10 +419,10 @@ def plot_brain_slice_2d(
     elif pt is not None:
         fixed_value = pt[axis]
         plot_plane_values = pt
-    elif plot_highlighted_region is not None and region_centroid is not None:
-        pt = region_centroid
-        fixed_value = region_centroid[axis]
-        plot_plane_values = region_centroid
+    # elif plot_highlighted_region is not None and region_centroid is not None:
+    #     pt = region_centroid
+    #     fixed_value = region_centroid[axis]
+    #     plot_plane_values = region_centroid
     else:
         fixed_value = int(affine[:, -1][axis])
         plot_plane_values = (affine[:, -1][:3]).astype(int)
@@ -426,25 +431,35 @@ def plot_brain_slice_2d(
     inverse_codes = {"R": "L", "A": "P", "S": "I", "L": "R", "P": "A", "I": "S"}
 
     if add_coordinate_frame_info:
-        ax.text(
-            120, 10, inverse_codes[codes[y_label]], c="white" if plot_empty else "black"
-        )
-        ax.text(120, 240, codes[y_label], c="white" if plot_empty else "black")
+
+        if axis==1:
+            xoffset= 40
+        elif axis ==2:
+            xoffset = 30
+        else:
+            xoffset = 0
 
         ax.text(
-            10, 120, inverse_codes[codes[x_label]], c="white" if plot_empty else "black"
+            128, 10, "\\"+f"textbf{{{inverse_codes[codes[y_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
         )
-        ax.text(240, 120, codes[x_label], c="white" if plot_empty else "black")
+        ax.text(128, 246, "\\"+f"textbf{{{codes[y_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
+
+        ax.text(
+            10+xoffset, 128, "\\"+f"textbf{{{inverse_codes[codes[x_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
+        )
+        ax.text(246-xoffset, 128, "\\"+f"textbf{{{codes[x_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
 
     if add_top_left_info:
         ax.text(
-            10,
-            220,
+            20,
+            226,
             f"""{codes[axis]} ({ax_labels[axis]})= {fixed_value}
             {"".join(codes)}
             {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
             """,
             c="white" if plot_empty else "black",
+            horizontalalignment='center',
+            verticalalignment='center'
         ).set_fontsize(10)
 
     # NOTE: Having repeated values for scatterplots
@@ -513,26 +528,165 @@ def plot_brain_slice_2d(
             avoid_values.append(103)
 
         alpha_values = None
-        if plot_highlighted_region:
-            assert (
-                region_centroid is not None
-            ), "If plot_highlighted_region = (int) region_centroid should also be provided"
-            alpha_values = np.ones(104) * 0.1
-            alpha_values[plot_highlighted_region] = 1
+        # if plot_highlighted_region:
+        #     assert (
+        #         region_centroid is not None
+        #     ), "If plot_highlighted_region = (int) region_centroid should also be provided"
+        #     alpha_values = np.ones(104) * 0.1
+        #     alpha_values[plot_highlighted_region] = 1
 
-        if plot_highlighted_regions:
+        if highlighted_region_ids is not None:
             alpha_values = np.ones(104) * 0.05
-            alpha_values[plot_highlighted_regions] = 1
-            if highlighted_region_names is not None and highlighted_region_centroids is not None:
-                for i, name in enumerate(highlighted_region_names):
-                    if plot_highlighted_regions[i] in cerebra_slice:
-                        ax.text(
-                            highlighted_region_centroids[i][x_label],
-                            highlighted_region_centroids[i][y_label],
-                            f"{name}",
-                            c="white" if plot_empty else "black",
-                            size=20 - len(plot_highlighted_regions)
-                        )
+            alpha_values[highlighted_region_ids] = 1
+            alpha_values[103]=1
+
+        if plot_region_names and highlighted_region_names is not None and highlighted_region_centroids is not None:
+
+            npoints = len(highlighted_region_names) # points to chose from
+
+            if axis==0:
+                r = 96.5 # radius of the circle
+            elif axis==1:
+                r = 93
+            else:
+                r=96.5
+
+            t = np.linspace(0, 2*np.pi, npoints, endpoint=False)
+
+            #if axis==1:
+            #    aff_translate = affine[:-1, 3]
+            #    x = r * np.cos(t) + aff_translate[x_label]
+            #    y = r * np.sin(t) + aff_translate[y_label]
+            #else:
+            x = r * np.cos(t) + 128
+            y = r * np.sin(t) + 128
+            circle_points = np.array([x,y]).T
+            used_points = []
+            used_ids = []
+            for r_id, (region_name, region_centroid) in enumerate(zip(highlighted_region_names, highlighted_region_centroids)):
+                if highlighted_region_ids[r_id] not in cerebra_slice:
+                    continue
+                x = region_centroid[x_label]
+                y = region_centroid[y_label]
+                region_id = highlighted_region_ids[r_id]
+                # print(region_id)
+                used_ids.append(region_id)
+                # Get closest circle point
+                min_dist = 100000
+                min_i = 0
+                for i, (cx, cy) in enumerate(circle_points):
+                    dist = (cx-x)**2 + (cy-y)**2
+                    if dist < min_dist and i not in used_points:
+                        min_dist = dist
+                        min_i = i
+                used_points.append(min_i)
+                x = circle_points[min_i][0]
+                y = circle_points[min_i][1]
+                
+                x_text= x-5 if x < 128 else x+5
+                y_text= y-5 if (y < 120) else y+5 if (y > 136) else y
+
+                ax.text(
+                    x_text,
+                    y_text,
+                    f"{region_id}",
+                    c="white" if plot_empty else "black",
+                    size=14,
+                    verticalalignment="center",
+                    horizontalalignment="center",
+                )
+                ax.scatter(x,y ,color=colors[region_id], s=16)
+                # Plot straight line from point to centroid
+                ax.plot([x,region_centroid[x_label]],[y,region_centroid[y_label]],c="black",linewidth=0.5)
+
+            print(used_ids)
+            #print(x,y)
+
+
+            # ax.scatter(x,y)
+            # for i, (x_, y_) in enumerate(zip(x,y)):
+            #     ax.text(
+            #         x_,
+            #         y_,
+            #         f"{highlighted_region_ids[i]}",
+            #         c="white" if plot_empty else "black",
+            #         size=18,
+            #         verticalalignment="center",
+            #         horizontalalignment="center",
+            #     )
+            #     # Plot straight line from point to centroid
+            #     ax.plot([x_,highlighted_region_centroids[i][x_label]],[y_,highlighted_region_centroids[i][y_label]],c="black",linewidth=0.5)
+
+            # if :
+                    
+            #         label_positions = []
+            #         size = 18
+            #         plotted_regions=[]
+            #         for h_region_id, name in enumerate(highlighted_region_names):
+                        
+            #             if highlighted_region_ids[h_region_id] in cerebra_slice:
+
+            #                 plotted_regions.append(highlighted_region_ids[h_region_id])
+
+            #                 region_label_x_pos = highlighted_region_centroids[h_region_id][x_label]
+            #                 region_label_y_pos = highlighted_region_centroids[h_region_id][y_label]
+
+            #                 # Spread far away labels
+            #                 expand_x, expand_y = 0.1,0.1
+            #                 x_off = abs(128-region_label_x_pos)*expand_x
+            #                 #x_off = x_off**2
+            #                 # region_label_x_pos = region_label_x_pos - x_off if region_label_x_pos < 128 else region_label_x_pos + x_off
+                            
+            #                 y_off = abs(128-region_label_y_pos)*expand_y
+            #                 #y_off = y_off**2
+            #                 # region_label_y_pos = region_label_y_pos - y_off if region_label_y_pos < 128 else region_label_y_pos + y_off
+            #                 # region_label_y_pos = 2*(region_label_y_pos-30)-216//2
+            #                 # region_label_y_pos = region_label_y_pos-128*(128-region_label_y_pos)/128
+
+
+
+
+            #                 # for _ in range(1000):
+            #                 #     # Fix overlapping
+            #                 #     for i,(x,y) in enumerate(label_postions):
+            #                 #         if (x-region_label_x_pos)**2 + (y-region_label_y_pos)**2 < 100:
+            #                 #             offsetsize = 10
+            #                 #             region_label_x_pos += offsetsize if i%2==0 else -offsetsize
+            #                 #             region_label_y_pos += offsetsize if i%2==0 else -offsetsize
+            #                 #             break
+
+            #                 #     # region_label_x_pos = max(0, region_label_x_pos)
+            #                 #     # region_label_x_pos = min(216-size//2, region_label_x_pos)
+            #                 #     # region_label_y_pos = max(0, region_label_y_pos)
+            #                 #     # region_label_y_pos = min(216-size//2, region_label_y_pos)
+
+            #                 #     pos_too_close = False
+            #                 #     for x,y in label_postions:
+            #                 #         if (x-region_label_x_pos)**2 + (y-region_label_y_pos)**2 < 50000:
+            #                 #             pos_too_close = True
+            #                 #             break
+
+            #                 #     if pos_too_close:
+            #                 #         continue
+            #                 #     label_postions.append((region_label_x_pos, region_label_y_pos))
+            #                 #     if _ == 999:
+            #                 #         print("not found")
+            #                 for label_i, ( x_pos, y_pos) in enumerate(label_positions):
+            #                     if abs(x_pos-region_label_x_pos) < 10 and abs(y_pos-region_label_y_pos) < 10:
+            #                         print(f"{highlighted_region_ids[h_region_id]} and {highlighted_region_ids[label_i]} are too close")
+
+            #                 label_positions.append((region_label_x_pos, region_label_y_pos))
+            #                 ax.text(
+            #                     region_label_x_pos,
+            #                     region_label_y_pos,
+            #                     f"{highlighted_region_ids[h_region_id]}",
+            #                     c="white" if plot_empty else "black",
+            #                     size=size,
+            #                     verticalalignment="center",
+            #                     horizontalalignment="center",
+            #                 )
+            #         print(plotted_regions)
+
 
         new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
             cerebra_slice,
@@ -540,7 +694,7 @@ def plot_brain_slice_2d(
             colors=colors if volume_colors is None else volume_colors,
             avoid_values=avoid_values,
             alpha_values=alpha_values,
-            size_values=np.repeat(1, len(colors)),
+            size_values=np.repeat(2, len(colors)),
         )
         xs_ys, cs, alphas, sizes = merge_points_optimized(
             [xs_ys, new_xs_ys], [cs, new_cs], [alphas, new_alphas], [sizes, new_sizes]
@@ -593,27 +747,27 @@ def plot_brain_slice_2d(
         xs, ys = xs_ys.T
         ax.scatter(xs, ys, c=cs, alpha=alphas, s=sizes)
 
-    if plot_planes:
-        ax.hlines(
-            plot_plane_values[y_label],
-            0,
-            256,
-            linestyles="solid",
-            alpha=0.5,
-            colors=colors[plot_highlighted_region]
-            if plot_highlighted_region is not None
-            else "gray",
-        )
-        ax.vlines(
-            plot_plane_values[x_label],
-            0,
-            256,
-            linestyles="solid",
-            alpha=0.5,
-            colors=colors[plot_highlighted_region]
-            if plot_highlighted_region is not None
-            else "gray",
-        )
+    # if plot_planes:
+    #     ax.hlines(
+    #         plot_plane_values[y_label],
+    #         0,
+    #         256,
+    #         linestyles="solid",
+    #         alpha=0.5,
+    #         colors=colors[plot_highlighted_region]
+    #         if plot_highlighted_region is not None
+    #         else "gray",
+    #     )
+    #     ax.vlines(
+    #         plot_plane_values[x_label],
+    #         0,
+    #         256,
+    #         linestyles="solid",
+    #         alpha=0.5,
+    #         colors=colors[plot_highlighted_region]
+    #         if plot_highlighted_region is not None
+    #         else "gray",
+    #     )
 
     if plot_affine:
         aff_translate = affine[:-1, 3]
