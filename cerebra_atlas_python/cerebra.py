@@ -275,10 +275,7 @@ class CerebrA(Config):
         plot_cortical: bool = None,
         **kwargs,
     ):
-        src_space_points = None
-        if plot_src_space:
-            src_space_points = self.src_space_points
-
+        
         region_centroid = None
         if plot_highlighted_region is not None:
             assert isinstance(plot_highlighted_region, int)
@@ -316,40 +313,40 @@ class CerebrA(Config):
             ]
             volume_colors = np.array(volume_colors)
 
-        t1_volume = None
-        if plot_t1_volume:
-            t1_volume = move_volume_from_lia_to_ras(self.mni_average.t1.dataobj)
+        highlighted_region_ids, highlighted_region_names, highlighted_region_centroids = None, None, None
+        if plot_highlighted_regions is not None:
+            highlighted_region_ids = np.array(plot_highlighted_regions)
+            highlighted_region_names = [self.get_region_name_from_region_id(i) for i in plot_highlighted_regions]
+            highlighted_region_centroids = [self.find_region_centroid_from_id(i) for i in plot_highlighted_regions]
 
-        return (
-            src_space_points,
-            region_centroid,
-            pt_dist,
-            pt_text,
-            volume_colors,
-            t1_volume,
-        )
+        return {
+            "src_space_points" : self.src_space_points if plot_src_space else None,
+            "highlighted_region_ids" : highlighted_region_ids,
+            "highlighted_region_names": highlighted_region_names,
+            "highlighted_region_centroids": highlighted_region_centroids
+        }
+        # (
+        #     src_space_points,
+        #     region_centroid,
+        #     pt_dist,
+        #     pt_text,
+        #     volume_colors,
+        #     t1_volume,
+        # )
 
     def plot_data_2d(
         self,
         plot_type="orthoview",
         plot_src_space: bool = False,
         plot_distance_to_inner_skull: bool = False,
-        plot_highlighted_region: int = None,
-        plot_highlighted_regions: int = None,
+        plot_highlighted_regions: List[int] = None,
         plot_cortical: bool = None,
         **kwargs,
     ):
-        (
-            src_space_points,
-            region_centroid,
-            pt_dist,
-            pt_text,
-            volume_colors,
-            t1_volume,
-        ) = self.prepare_plot_data_2d(
-            plot_src_space,
-            plot_distance_to_inner_skull,
-            plot_highlighted_region,
+        
+        plot_data = self.prepare_plot_data_2d(
+            plot_src_space=plot_src_space,
+            plot_distance_to_inner_skull=plot_distance_to_inner_skull,
             plot_highlighted_regions=plot_highlighted_regions,
             plot_cortical=plot_cortical,
             **kwargs,
@@ -358,13 +355,7 @@ class CerebrA(Config):
             fig, axs = orthoview(
                 self.cerebra_volume,
                 self.affine,
-                src_space_points=src_space_points,
-                pt_dist=pt_dist,
-                plot_highlighted_region=plot_highlighted_region,
-                region_centroid=region_centroid,
-                pt_text=pt_text,
-                volume_colors=volume_colors,
-                t1_volume=t1_volume,
+                **plot_data,
                 **kwargs,
             )
             return fig, axs
@@ -373,19 +364,13 @@ class CerebrA(Config):
             fig, ax = plot_brain_slice_2d(
                 self.cerebra_volume,
                 self.affine,
-                src_space_points=src_space_points,
-                pt_dist=pt_dist,
-                plot_highlighted_region=plot_highlighted_region,
-                region_centroid=region_centroid,
-                pt_text=pt_text,
-                volume_colors=volume_colors,
-                t1_volume=t1_volume,
+                **plot_data,
                 **kwargs,
             )
             return fig, ax
 
         else:
-            raise ValueError(f"Unknown plot_data plot_type argument {plot_type=}")
+            raise ValueError(f"Unknown {plot_type=}")
 
     # @time_func_decorator
     def orthoview(
