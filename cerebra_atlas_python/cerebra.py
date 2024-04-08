@@ -243,6 +243,10 @@ class CerebrA(Config):
 
         return perception_visual_ambient
 
+    def get_cortical_id_from_region_id(self, region_id):
+        return np.where(self.get_cortical_region_ids() == region_id)[0][0]
+
+
     def find_region_centroid_from_name(self, region_name):
         region_id = self.get_region_id_from_region_name(region_name)
         return self.find_region_centroid_from_id(region_id)
@@ -273,6 +277,7 @@ class CerebrA(Config):
         plot_highlighted_region: int = None,
         plot_highlighted_regions: int = None,
         plot_cortical: bool = None,
+        plot_cortical_ids:bool = None,
         **kwargs,
     ):
         
@@ -317,14 +322,19 @@ class CerebrA(Config):
         if plot_highlighted_regions is not None:
             highlighted_region_ids = np.array(plot_highlighted_regions)
             highlighted_region_names = [self.get_region_name_from_region_id(i) for i in plot_highlighted_regions]
+            if plot_cortical_ids:
+                highlighted_cortical_ids = [self.get_cortical_id_from_region_id(i) for i in plot_highlighted_regions]
             highlighted_region_centroids = [self.find_region_centroid_from_id(i) for i in plot_highlighted_regions]
 
-        return {
+        ret_data = {
             "src_space_points" : self.src_space_points if plot_src_space else None,
             "highlighted_region_ids" : highlighted_region_ids,
             "highlighted_region_names": highlighted_region_names,
             "highlighted_region_centroids": highlighted_region_centroids
         }
+        if plot_cortical_ids:
+            ret_data["highlighted_cortical_ids"] = highlighted_cortical_ids
+        return ret_data
         # (
         #     src_space_points,
         #     region_centroid,
@@ -340,7 +350,7 @@ class CerebrA(Config):
         plot_src_space: bool = False,
         plot_distance_to_inner_skull: bool = False,
         plot_highlighted_regions: List[int] = None,
-        plot_cortical: bool = None,
+        plot_cortical_ids: bool = None,
         **kwargs,
     ):
         
@@ -348,7 +358,7 @@ class CerebrA(Config):
             plot_src_space=plot_src_space,
             plot_distance_to_inner_skull=plot_distance_to_inner_skull,
             plot_highlighted_regions=plot_highlighted_regions,
-            plot_cortical=plot_cortical,
+            plot_cortical_ids=plot_cortical_ids,
             **kwargs,
         )
         if plot_type == "orthoview":

@@ -368,6 +368,7 @@ def plot_brain_slice_2d(
     highlighted_region_ids=None,
     highlighted_region_names=None,
     highlighted_region_centroids=None,
+    highlighted_cortical_ids=None,
     region_centroid=None,
     pt_dist=None,
     cmap_name="default",
@@ -568,7 +569,7 @@ def plot_brain_slice_2d(
                     continue
                 x = region_centroid[x_label]
                 y = region_centroid[y_label]
-                region_id = highlighted_region_ids[r_id]
+                region_id = highlighted_cortical_ids[r_id] if highlighted_cortical_ids is not None else highlighted_region_ids[r_id]
                 # print(region_id)
                 used_ids.append(region_id)
                 # Get closest circle point
