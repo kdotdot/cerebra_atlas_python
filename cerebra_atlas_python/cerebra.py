@@ -80,7 +80,7 @@ class CerebrA(Config):
     @cache_np()
     def src_space_mask(self):
         def compute_fn(self):
-            return get_source_space_mask(self, self.source_space_grid_size, self.source_space_include_wm, self.source_space_include_non_cortical)
+            return get_source_space_mask(self, self.source_space_grid_size, self.source_space_include_non_cortical, self.source_space_include_wm)
         return compute_fn, self._src_space_mask_path
 
     @property
