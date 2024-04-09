@@ -47,12 +47,12 @@ class MNIAverage(Config):
         self.subject_dir = op.join(self.subjects_dir, self.subject_name)
         self.bem_folder_path = op.join(self.subject_dir, "bem")
         self.fiducials_path = op.join(
-            self.bem_folder_path, f"{self.subject_name}-fiducials.fif"
+            self.cerebra_data_path, f"{self.subject_name}-fiducials.fif"
         )
         self.wm_path = op.join(self.subject_dir, "mri/wm.mgz")
         self.t1_path = op.join(self.subject_dir, "mri/T1.mgz")
-        self.head_mri_t_path = op.join(self.subject_dir, "head_mri_t.fif")
-        self.info_path = op.join(self.cerebra_data_path, "info.fif")
+        self.head_mri_t_path = op.join(self.cerebra_data_path, "head_mri_t.fif")
+        # self.info_path = op.join(self.cerebra_data_path, "info.fif")
         self.mri_ras_t_path = op.join(self.cerebra_data_path, "mri_ras-trans.fif")
 
         # Output paths
@@ -64,9 +64,9 @@ class MNIAverage(Config):
         # Mapping for making sure bem indices refer to the same surface every time
         self.bem_names = {1: "outer_skin", 2: "outer_skull", 3: "inner_skull"}
 
-        # self._set_fiducials()
-        # self._set_head_mri_t()
-        # self._set_mri_ras_t()
+        self._set_fiducials()
+        self._set_head_mri_t()
+        self._set_mri_ras_t()
 
     # * PROPERTIES
     @property
