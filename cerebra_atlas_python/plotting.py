@@ -126,6 +126,7 @@ def get_2d_fig_ax(
     figsize: Tuple[int, int] = (6, 6),
     use_latex_figures: bool = True,
     add_grid: bool = False,
+    narrow_ax: bool = True
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Creates a 2D figure and axes with optional LaTeX styling and grid.
@@ -147,8 +148,12 @@ def get_2d_fig_ax(
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot()
 
-    ax.set_xlim([30, 226])
-    ax.set_ylim([30, 226])
+    if narrow_ax:
+        ax.set_xlim([30, 226])
+        ax.set_ylim([30, 226])
+    else:
+        ax.set_xlim([0, 256])
+        ax.set_ylim([0, 256])
 
     if use_latex_figures:
         figure_features()
@@ -349,6 +354,8 @@ def get_cmap():
     newcmp = ListedColormap(get_cmap_colors())
     return newcmp
 
+def string_to_latex_bold(string: str) -> str:
+    return "\\"+f"textbf{{{string}}}"
 
 # takes in brain voxel volume (RAS)
 # @time_func_decorator
@@ -389,6 +396,7 @@ def plot_brain_slice_2d(
     add_ax_ticks=True,
     volume_colors=None,
     t1_volume=None,
+    narrow_ax=True,
 ):
     x_label, y_label = get_ax_labels(axis)
 
@@ -398,10 +406,15 @@ def plot_brain_slice_2d(
             figsize=slice_figsize,
             use_latex_figures=use_latex_figures,
             add_grid=add_grid,
+            narrow_ax=narrow_ax
         )
 
-    ax.set_xlim([30, 226])
-    ax.set_ylim([30, 226])
+    if narrow_ax:
+        ax.set_xlim([30, 226])
+        ax.set_ylim([30, 226])
+    else:
+        ax.set_xlim([0, 256])
+        ax.set_ylim([0, 256])
 
     # Configure ax
     ax_labels = ["X", "Y", "Z"]
@@ -451,9 +464,10 @@ def plot_brain_slice_2d(
         ax.text(246-xoffset, 128, "\\"+f"textbf{{{codes[x_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
 
     if add_top_left_info:
+        print(f"{ax.get_xlim()=}")
         ax.text(
-            20,
-            226,
+            ax.get_xbound()[0] + 20,
+            ax.get_ybound()[1] - 20,
             f"""{codes[axis]} ({ax_labels[axis]})= {fixed_value}
             {"".join(codes)}
             {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
@@ -908,7 +922,7 @@ def plot_volume_3d(
                         ys.append(y)
                         zs.append(z)
 
-        ax.scatter(xs, ys, zs, c=cs, alpha=0.1 if highlighted_regions is not None else alpha)
+        ax.scatter(xs, ys, zs, c=cs, alpha=0.1 if highlighted_regions_pts is not None else alpha)
 
     if bem_surfaces is not None:
         xs = bem_surfaces[2].T[0]

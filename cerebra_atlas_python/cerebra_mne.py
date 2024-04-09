@@ -86,15 +86,21 @@ class CerebraMNE(CerebrA, MNIAverage, Config):
         self._bem_surfaces = self.get_bem_surfaces_ras_nzo(
             transform=self.affine
         )
+        
+    def get_t1_volume_lia(self):
+        return np.array(self.t1.dataobj)
+
+    def get_t1_volume_ras(self):
+        return move_volume_from_lia_to_ras(self.get_t1_volume_lia())
 
     def prepare_plot_data_2d(self, plot_t1_volume=False, **kwargs):
         data = super().prepare_plot_data_2d(**kwargs)
         if plot_t1_volume:
-            data["t1_volume"] = move_volume_from_lia_to_ras(self.t1.dataobj)
+            data["t1_volume"] = self.get_t1_volume()
         return data
 
     def plot_data_2d(self, plot_t1_volume=False, **kwargs):
         t1_volume = None
         if plot_t1_volume:
-            t1_volume = move_volume_from_lia_to_ras(self.t1.dataobj)
+            t1_volume = self.get_t1_volume()
         return super().plot_data_2d(t1_volume=t1_volume,**kwargs)
