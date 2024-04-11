@@ -5,7 +5,7 @@ from open3d.visualization import Visualizer # CUDA/CPU
 import numpy as np
 
 from cerebra_atlas_python.plotting import get_cmap_colors
-from cerebra_atlas_python.cerebra_mne import CerebraMNE
+from cerebra_atlas_python import CerebrA
 
 def create_plot(background_color=[1, 1, 1], draw_bounding_box=True):
     vis = Visualizer()
@@ -126,9 +126,9 @@ def add_drawable(vis, *drawables: Drawable):
     for obj in drawables:
         o3d_obj = obj.get_o3d()
         vis.add_geometry(o3d_obj)
-        R = o3d_obj.get_rotation_matrix_from_xyz((np.pi/2+ np.pi/16, np.pi , np.pi/2- np.pi/4))
-        o3d_obj.rotate(R, center=(128, 128, 128))
-        o3d_obj.scale(0.5, center=(128, 128, 128))
+        # R = o3d_obj.get_rotation_matrix_from_xyz((np.pi/2+ np.pi/16, np.pi , np.pi/2- np.pi/4))
+        # o3d_obj.rotate(R, center=(128, 128, 128))
+        # o3d_obj.scale(0.5, center=(128, 128, 128))
 
     return vis
 
@@ -145,30 +145,30 @@ def run(vis, MAX_FRAME=int(1e6)):
 if __name__ == "__main__":
     colors_hex = get_cmap_colors()
 
-    cerebra_cortical = CerebraMNE(source_space_include_non_cortical=False)
-    cerebra_non_cortical = CerebraMNE(source_space_include_non_cortical=True)
+    cerebra_cortical = CerebrA(source_space_include_non_cortical=False)
+    cerebra_non_cortical = CerebrA(source_space_include_non_cortical=True)
 
-    print(cerebra_cortical.get_bem_triangles())
     #print(cerebra_non_cortical.bem["surfs"][0].keys())
 
-    non_cortical_mask = np.logical_xor (cerebra_cortical.src_space_mask, cerebra_non_cortical.src_space_mask)
-    non_cortical_points = np.indices([256, 256, 256])[:, non_cortical_mask].T
+    non_cortical_mask_lia = np.logical_xor (cerebra_cortical.src_space_mask_lia, cerebra_non_cortical.src_space_mask_lia)
+    non_cortical_points = np.indices([256, 256, 256])[:, non_cortical_mask_lia].T
+    print(cerebra_cortical.src_space_labels)
     colors_cortical = [colors_hex[label] for label in cerebra_cortical.src_space_labels]
 
     bem_colors = [[0,0.1,1],[0.1,0.2,0.9],[0.2,0.1,0.95]]
     
-
     # bem_meshes = [Mesh(cerebra_cortical.get_bem_vertices_ras()[i],cerebra_cortical.get_bem_normals_ras()[i],cerebra_cortical.get_bem_triangles()[i], colors=[0,0,1,0.5]) for i in range(3)]
-    bem_pcs = [PointCloud(cerebra_cortical.get_bem_vertices_ras()[i], colors=bem_colors[i]) for i in range(3)]
-    fiducials_pc = PointCloud(cerebra_cortical.get_fiducials_ras(), [0,1,0])
+    bem_pcs = [PointCloud(cerebra_cortical.get_bem_vertices_vox()[i], colors=bem_colors[i]) for i in range(3)]
+    # fiducials_pc = PointCloud(cerebra_cortical.get_fiducials_ras(), [0,1,0])
 
     vis = create_plot()
     # # Load the source space
-    # src_space_pc = PointCloud(non_cortical_points, [0.2,0.2,0.2])
-    src_space_pc_2 = PointCloud(cerebra_cortical.src_space_points, [0.9,0.0,0.9])
+    src_space_pc = PointCloud(non_cortical_points, [0.2,0.2,0.2])
+    src_space_pc_2 = PointCloud(cerebra_cortical.src_space_points_lia, [0.9,0.0,0.9])
     # # 
     # src_space_pc_4 = PointCloud(cerebra_cortical.get_fiducials_ras(), [0,1,0])
     # vis = add_drawable(vis, *bem_meshes,fiducials_pc)
-    vis = add_drawable(vis, src_space_pc_2, *bem_pcs, fiducials_pc)
+    vis = add_drawable(vis, src_space_pc,src_space_pc_2, *bem_pcs)
     run(vis)
 
+    # Everything is LIA

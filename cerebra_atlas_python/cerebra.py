@@ -5,6 +5,7 @@ import os.path as op
 import logging
 from typing import Dict, List
 import numpy as np
+import mne
 import pandas as pd
 import matplotlib
 
@@ -14,60 +15,87 @@ from .plotting import (
     plot_brain_slice_2d
 )
 from .utils import (
-    find_closest_point  
+    point_cloud_to_voxel  
     
 )
 from .config import Config
-from .source_space import get_source_space_mask
-from .cache import cache_pkl,cache_np 
+from .cache import cache_pkl,cache_np, cache_mne_src
+from .cerebra_base import CerebraBase
+from .transforms import lia_to_ras
 
 logger = logging.getLogger(__name__)
 
-class CerebrA(Config):
-    def __init__(self, config_path=None, **kwargs,):
-        self.cerebra_output_path: str = "./generated/cerebra"
-        self.cerebra_data_path: str = op.dirname(__file__) + "/cerebra_data"
+class CerebrA(CerebraBase,Config):
+    def __init__(self, **kwargs,):
 
         self.source_space_grid_size: int = 3
         self.source_space_include_wm: bool = False
         self.source_space_include_non_cortical = True
 
-        Config.__init__(self, class_name=self.__class__.__name__,config_path=config_path, **kwargs)
+        Config.__init__(self, class_name=self.__class__.__name__, **kwargs)
+        CerebraBase.__init__(self, **kwargs,)
 
         # Always load (fast/required)
         self.label_details: pd.DataFrame = None
-        self.cerebra_volume: np.ndarray = None
-        self.affine: np.ndarray = None
+        
         # Load on demand [using @property] (slow)
+        self._affine: np.ndarray = None
+        self._cerebra_volume: np.ndarray = None
         self._cerebra_sparse: Dict[np.ndarray] = None
         self._src_space_points: np.ndarray = None
         self._src_space_mask: np.ndarray = None
+        self._src_space_mask_lia: np.ndarray = None
         self._src_space_labels: np.ndarray = None
         self._src_space_n_points_per_region: np.ndarray = None
 
 
         # Input paths
-        cerebra_volume_path = op.join(self.cerebra_data_path, "volume.npy")
-        cerebra_affine_path = op.join(self.cerebra_data_path, "affine.npy")
         label_details_path = op.join(self.cerebra_data_path, "label_details.csv")
 
 
         # Output paths
-        self._cerebra_sparse_path = op.join(self.cerebra_output_path, "CerebrA_sparse.pkl")
+        self._cerebra_volume_path = op.join(self.cache_path_cerebra, "cerebra_volume.npy")
+        self._cerebra_affine_path = op.join(self.cache_path_cerebra, "cerebra_affine.npy")
+        self._cerebra_sparse_path = op.join(self.cache_path_cerebra, "CerebrA_sparse.pkl")
         self.src_space_string = f"src_space_{self.source_space_grid_size}mm{'wm' if self.source_space_include_wm else ''}{'_nc' if self.source_space_include_non_cortical else ''}"
         self._src_space_mask_path = op.join(
-            self.cerebra_output_path, f"{self.src_space_string}_mask.npy"
+            self.cache_path_cerebra, f"{self.src_space_string}_mask.npy"
+        )
+        self._src_space_mask_lia_path = op.join(
+            self.cache_path_cerebra, f"{self.src_space_string}_lia_mask.npy"
         )
         self._src_space_points_path = op.join(
-            self.cerebra_output_path, f"{self.src_space_string}_src_pts.npy"
+            self.cache_path_cerebra, f"{self.src_space_string}_src_pts.npy"
+        )
+        self._src_space_points_path_lia = op.join(
+            self.cache_path_cerebra, f"{self.src_space_string}_src_pts_lia.npy"
+        )
+        self._src_space_path = op.join(
+            self.cache_path_cerebra, f"{self.src_space_string}_src.fif"
         )
 
-        self.cerebra_volume = np.load(cerebra_volume_path)
-        self.affine = np.load(cerebra_affine_path)
         self.label_details = pd.read_csv(label_details_path, index_col=0)
 
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
+
+    @property
+    @cache_np()
+    def cerebra_volume(self):
+        def compute_fn(self):
+            cerebra_volume_ras,_ = self.get_cerebra_volume_ras()
+            wm_volume_ras = self.get_wm_volume_ras()
+            cerebra_volume_ras[(wm_volume_ras != 0) & (cerebra_volume_ras == 0)] = 103
+            return cerebra_volume_ras.astype(int)
+        return compute_fn, self._cerebra_volume_path
+    
+    @property
+    @cache_np()
+    def affine(self):
+        def compute_fn(self):
+            _,affine = self.get_cerebra_volume_ras()
+            return affine
+        return compute_fn, self._cerebra_affine_path
 
     @property
     @cache_pkl()
@@ -80,15 +108,46 @@ class CerebrA(Config):
     @cache_np()
     def src_space_mask(self):
         def compute_fn(self):
-            return get_source_space_mask(self, self.source_space_grid_size, self.source_space_include_non_cortical, self.source_space_include_wm)
+            return lia_to_ras(self.src_space_mask_lia)
         return compute_fn, self._src_space_mask_path
 
+    @property
+    @cache_np()
+    def src_space_mask_lia(self):
+        def compute_fn(self):
+            return self.get_source_space_mask()
+        return compute_fn, self._src_space_mask_lia_path
+
+    @property
+    @cache_np()
+    def src_space_points_lia(self):
+        def compute_fn(self):
+            return np.indices([256, 256, 256])[:, self.src_space_mask_lia].T
+        return compute_fn, self._src_space_points_path_lia
+    
     @property
     @cache_np()
     def src_space_points(self):
         def compute_fn(self):
             return np.indices([256, 256, 256])[:, self.src_space_mask].T
         return compute_fn, self._src_space_points_path
+    
+    
+    
+    @property
+    @cache_mne_src()
+    def src_space(self):
+        def compute_fn(self):
+            src_space_pts =  np.indices([256, 256, 256])[:, self.src_space_mask_lia].T
+            normals = np.repeat([[0, 0, 1]], len(src_space_pts), axis=0)
+
+            rr = point_cloud_to_voxel(src_space_pts)
+            rr = np.argwhere(rr != 0)
+            rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
+            pos = dict(rr=rr, nn=normals)
+            src_space = mne.setup_volume_source_space(pos=pos)
+            return src_space
+        return compute_fn, self._src_space_path
     
     
     @property
@@ -179,6 +238,65 @@ class CerebrA(Config):
         # closest_point, distance = find_closest_point(inner_skull_points, pt)
 
         # return closest_point, distance
+
+    def get_source_space_mask(self, coord_frame="lia"):
+
+        if coord_frame == "lia":
+            volume = self.cerebra_img.get_fdata()
+        elif coord_frame == "ras":
+            volume = self.cerebra_volume
+        else:
+            raise ValueError(f"Unknown {coord_frame=}")
+
+        # Create grid (downsample available volume)
+        size = self.source_space_grid_size
+        grid = np.zeros((256, 256, 256))
+        a = np.arange(size - 1, 256, size)
+        for x in a:
+            for y in a:
+                grid[x, y, a] = 1
+        grid_mask = grid.astype(bool)
+
+        # If include non-cortical keep all
+        if self.source_space_include_non_cortical:
+            not_zero_mask = volume != self.get_region_id_from_region_name(
+                "Empty"
+            )
+            not_wm_mask = volume != self.get_region_id_from_region_name(
+                "White matter"
+            )
+            downsampled_not_zero_mask = np.logical_and(grid_mask, not_zero_mask)
+            downsampled_not_wm_mask = np.logical_and(grid_mask, not_wm_mask)
+            # Combined mask is not zero and not wm
+            combined_mask = np.logical_and(
+                downsampled_not_zero_mask, downsampled_not_wm_mask
+            )
+
+        else:  # Keep only cortical:
+            # Get cortical region ids
+            cortical_ids = self.label_details[self.label_details["cortical"] == True][
+                "CerebrA ID"
+            ].values
+            combined_mask = np.zeros((256, 256, 256)).astype(bool)
+            for c_id in cortical_ids:
+                # Handle each region individually
+                region_mask = volume == c_id
+                # Downsample based on grid
+                downsampled_region_mask = np.logical_and(grid_mask, region_mask)
+                # Add region to mask
+                combined_mask = np.logical_or(combined_mask, downsampled_region_mask)
+
+        # Add whitematter if needed
+        if self.source_space_include_wm:
+            whitematter_mask = (
+                volume
+                == self.get_region_id_from_region_name("White matter")
+            )
+            # Downsample
+            downsampled_whitematter_mask = np.logical_and(grid_mask, whitematter_mask)
+            combined_mask = np.logical_or(combined_mask, downsampled_whitematter_mask)
+
+        return combined_mask
 
     def get_closest_region_to_whitematter(self, pt, n_max=20):
         success = False

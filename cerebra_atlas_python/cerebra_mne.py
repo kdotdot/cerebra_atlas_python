@@ -38,18 +38,15 @@ class CerebraMNE(CerebrA, MNIAverage, Config):
         self._bem: mne.bem.ConductorModel = None
 
  
-        self._src_space_path = op.join(
-            self.cerebra_output_path, f"{self.src_space_string}_src.fif"
-        )
-        self._bem_path = op.join(
-            self.cerebra_output_path, f"{self.bem_name}_bem.fif"
-        )
+
+
 
         self._set_fiducials()
         self._set_head_mri_t()
         self._set_mri_ras_t()
 
     # * PROPERTIES
+    # TODO: FIX THIS
     @property
     @cache_mne_src()
     def src_space(self):
@@ -74,13 +71,7 @@ class CerebraMNE(CerebrA, MNIAverage, Config):
             return src_space
         return compute_fn, self._src_space_path
     
-    @property
-    @cache_mne_bem()
-    def bem(self):
-        def compute_fn(self):
-            bem = mne.make_bem_solution(self.bem_model)
-            return bem
-        return compute_fn, self._bem_path
+
 
 
     @property
@@ -158,21 +149,8 @@ class CerebraMNE(CerebrA, MNIAverage, Config):
     
     def get_fiducials_ras(self) -> np.ndarray:
         return self.mri_to_ras(self.get_fiducials_mri())
-    
-    def get_bem_vertices_mri(self) -> np.ndarray:
-        return np.array([surf["rr"] for surf in self.bem_model])
-    
-    def get_bem_vertices_ras(self) -> np.ndarray:
-        return [self.mri_to_ras(surf) for surf in self.get_bem_vertices_mri()]
 
-    def get_bem_normals_mri(self) -> np.ndarray:
-        return np.array([surf["nn"] for surf in self.bem_model])
-    
-    def get_bem_normals_ras(self) -> np.ndarray:
-        return [self.mri_to_ras(normals) for normals in self.get_bem_normals_mri()]
-    
-    def get_bem_triangles(self) -> np.ndarray:
-        return np.array([surf["tris"] for surf in self.bem_model])
+
         
 
 

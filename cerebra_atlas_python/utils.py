@@ -87,42 +87,64 @@ def setup_logging(
     logging.getLogger('pyprep.reference').setLevel(logging.WARNING)
     logging.getLogger('PngImagePlugin').setLevel(logging.WARNING)
 
-
-def move_volume_from_lia_to_ras(
-    volume: np.ndarray, affine: Optional[np.ndarray] = None
-) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
-    """
-    Transforms a volume from LIA (Left Inferior Anterior) orientation to RAS (Right Anterior Superior) orientation.
-
-    Args:
-        volume (np.ndarray): The input volume in LIA orientation.
-        affine (Optional[np.ndarray]): An optional affine transformation matrix associated with the volume.
-                                        If provided, it will be modified to reflect the change in orientation.
-
-    Returns:
-        Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]: The transformed volume in RAS orientation.
-                                                         If an affine matrix is provided, returns a tuple of the
-                                                         transformed volume and the modified affine matrix.
-    """
-    volume = np.rot90(volume, -1, axes=(1, 2))
-    volume = np.flipud(volume)
+def lia_to_ras(volume, affine=None):
+    flipped_volume = np.rot90(volume, -1, axes=(1, 2))
+    flipped_volume = np.flipud(flipped_volume)
+    
     if affine is None:
-        return volume
+        return flipped_volume
 
-    affine = affine.copy()
-    # Switch from LIA to RIA
-    affine[0, -1] = 126  # Fix translation
-    affine[0, 0] = 1
+    flip_matrix = np.eye(4)
+    flip_matrix[0, 0] = -1  # Flip X
+    flip_matrix[1, 2] = -1  # Flip Z
+    flip_matrix[1, 1] = 0  # Transpose Z
+    flip_matrix[2, 2] = 0  # Transpose Y
+    flip_matrix[2, 1] = 1  # Transpose Z
 
-    # Switch from RIA to RSA
-    affine[1, -1] = 256 - affine[2, -1]
-    affine[2, 1] = 1
+    # Adjust the translation part of the affine for the flip in X and Z axes
+    flip_matrix[0, 3] = volume.shape[0] - 1
+    flip_matrix[1, 3] = volume.shape[2] - 1
 
-    # Switch from RSA to RAS
-    affine[1:3, :] = np.roll(affine[1:3, :], 1, axis=0)
-    # affine[1, :], affine[2, :] = affine[2, :], affine[1, :] how?
+    # Compute the new affine matrix
+    new_affine = np.dot(affine, flip_matrix)
+    
+    return flipped_volume, new_affine
 
-    return volume, affine
+# def move_volume_from_lia_to_ras(
+#     volume: np.ndarray, affine: Optional[np.ndarray] = None
+# ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+#     """
+#     Transforms a volume from LIA (Left Inferior Anterior) orientation to RAS (Right Anterior Superior) orientation.
+
+#     Args:
+#         volume (np.ndarray): The input volume in LIA orientation.
+#         affine (Optional[np.ndarray]): An optional affine transformation matrix associated with the volume.
+#                                         If provided, it will be modified to reflect the change in orientation.
+
+#     Returns:
+#         Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]: The transformed volume in RAS orientation.
+#                                                          If an affine matrix is provided, returns a tuple of the
+#                                                          transformed volume and the modified affine matrix.
+#     """
+#     volume = np.rot90(volume, -1, axes=(1, 2))
+#     volume = np.flipud(volume)
+#     if affine is None:
+#         return volume
+
+#     affine = affine.copy()
+#     # Switch from LIA to RIA
+#     affine[0, -1] = 126  # Fix translation
+#     affine[0, 0] = 1
+
+#     # Switch from RIA to RSA
+#     affine[1, -1] = 256 - affine[2, -1]
+#     affine[2, 1] = 1
+
+#     # Switch from RSA to RAS
+#     affine[1:3, :] = np.roll(affine[1:3, :], 1, axis=0)
+#     # affine[1, :], affine[2, :] = affine[2, :], affine[1, :] how?
+
+#     return volume, affine
 
 
 def move_volume_from_ras_to_lia(volume: np.ndarray):
@@ -343,7 +365,7 @@ def get_volume_ras(path, dtype=np.uint8):
         Tuple[np.ndarray, np.ndarray]: A tuple containing the transformed volume data and its affine matrix.
     """
     img = nib.load(path)  # All volumes are in LIA coordinate frame
-    volume, affine = move_volume_from_lia_to_ras(
+    volume, affine = lia_to_ras(
         np.array(img.dataobj, dtype=dtype), img.affine
     )
     return volume, affine

@@ -126,7 +126,8 @@ def get_2d_fig_ax(
     figsize: Tuple[int, int] = (6, 6),
     use_latex_figures: bool = True,
     add_grid: bool = False,
-    narrow_ax: bool = True
+    x_lims: Optional[Tuple[int, int]] = None,
+    y_lims: Optional[Tuple[int, int]] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Creates a 2D figure and axes with optional LaTeX styling and grid.
@@ -145,15 +146,13 @@ def get_2d_fig_ax(
     Tuple[plt.Figure, plt.Axes]: A tuple containing the matplotlib figure and axes objects.
     """
     if ax is None:
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure()
         ax = fig.add_subplot()
 
-    if narrow_ax:
-        ax.set_xlim([30, 226])
-        ax.set_ylim([30, 226])
-    else:
-        ax.set_xlim([0, 256])
-        ax.set_ylim([0, 256])
+    if x_lims is not None:
+        ax.set_xlim(x_lims)
+    if y_lims is not None:
+        ax.set_ylim(y_lims)
 
     if use_latex_figures:
         figure_features()
@@ -397,8 +396,17 @@ def plot_brain_slice_2d(
     volume_colors=None,
     t1_volume=None,
     narrow_ax=True,
+    adjust_ax=True,
 ):
     x_label, y_label = get_ax_labels(axis)
+
+
+    if narrow_ax:
+        min_x,max_x = 30,226
+        min_y,max_y = 30,226
+    else:
+        min_x,max_x = 0,cerebra_volume.shape[x_label]
+        min_y,max_y = 0,cerebra_volume.shape[y_label]
 
     # Obtain matplotlib ax handle
     if ax is None:
@@ -406,15 +414,13 @@ def plot_brain_slice_2d(
             figsize=slice_figsize,
             use_latex_figures=use_latex_figures,
             add_grid=add_grid,
-            narrow_ax=narrow_ax
+            x_lims=[min_x,max_x] if adjust_ax else None,
+            y_lims=[min_y,max_y] if adjust_ax else None
         )
 
-    if narrow_ax:
-        ax.set_xlim([30, 226])
-        ax.set_ylim([30, 226])
-    else:
-        ax.set_xlim([0, 256])
-        ax.set_ylim([0, 256])
+    if adjust_ax:
+        ax.set_xlim([min_x, max_x])
+        ax.set_ylim([min_y, max_y])
 
     # Configure ax
     ax_labels = ["X", "Y", "Z"]
@@ -438,7 +444,7 @@ def plot_brain_slice_2d(
     #     fixed_value = region_centroid[axis]
     #     plot_plane_values = region_centroid
     else:
-        fixed_value = int(affine[:, -1][axis])
+        fixed_value = abs(int(affine[:, -1][axis]))
         plot_plane_values = (affine[:, -1][:3]).astype(int)
 
     codes = nib.orientations.aff2axcodes(affine)
@@ -453,21 +459,29 @@ def plot_brain_slice_2d(
         else:
             xoffset = 0
 
-        ax.text(
-            128, 10, "\\"+f"textbf{{{inverse_codes[codes[y_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
-        )
-        ax.text(128, 246, "\\"+f"textbf{{{codes[y_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
+        coordinate_info_text_size = 14
 
-        ax.text(
-            10+xoffset, 128, "\\"+f"textbf{{{inverse_codes[codes[x_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
-        )
-        ax.text(246-xoffset, 128, "\\"+f"textbf{{{codes[x_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
+        y_offset = coordinate_info_text_size//2 +3
 
+        # BOTTOM
+        ax.text(
+            max_x//2, y_offset, "\\"+f"textbf{{{inverse_codes[codes[y_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
+        )
+        # TOP
+        ax.text(max_x//2, max_y-y_offset, "\\"+f"textbf{{{codes[y_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
+
+        # LEFT
+        ax.text(
+            y_offset + xoffset, max_y//2, "\\"+f"textbf{{{inverse_codes[codes[x_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
+        )
+        # RIGHT
+        ax.text(max_x-(y_offset+xoffset), max_y//2, "\\"+f"textbf{{{codes[x_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
+      
     if add_top_left_info:
         print(f"{ax.get_xlim()=}")
         ax.text(
-            ax.get_xbound()[0] + 20,
-            ax.get_ybound()[1] - 20,
+            min_x + 30,
+            max_y - 30,
             f"""{codes[axis]} ({ax_labels[axis]})= {fixed_value}
             {"".join(codes)}
             {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
@@ -532,6 +546,7 @@ def plot_brain_slice_2d(
         # Set the number of layers used for plotting depth
         if n_layers == "max":
             n_layers = n_layers_max
+        print(f"{fixed_value= } {cerebra_volume.shape= }")
         cerebra_slice = slice_volume(
             cerebra_volume, fixed_value=fixed_value, axis=axis, n_layers=n_layers
         )
@@ -787,20 +802,20 @@ def plot_brain_slice_2d(
     if plot_affine:
         aff_translate = affine[:-1, 3]
         ax.hlines(
-            aff_translate[y_label],
+            abs(aff_translate[y_label]),
             0,
             256,
-            linestyles="dotted",
+            linestyles="solid",
             alpha=0.5,
-            colors="gray",
+            colors="#0FFF50",
         )
         ax.vlines(
-            aff_translate[x_label],
+            abs(aff_translate[x_label]),
             0,
             256,
-            linestyles="dotted",
+            linestyles="solid",
             alpha=0.5,
-            colors="gray",
+            colors="#0FFF50",
         )
 
     return fig, ax
