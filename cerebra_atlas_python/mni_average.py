@@ -6,11 +6,19 @@ import os.path as op
 import logging
 from typing import Tuple, Optional, List
 
-import mne
 import nibabel as nib
 import numpy as np
 
 from .config import Config
+from .cache import cache_pkl
+from .utils import (
+    move_volume_from_lia_to_ras,
+    find_closest_point,
+    merge_voxel_grids,
+    point_cloud_to_voxel,
+    move_volume_from_ras_to_lia,
+    get_volume_ras,
+)
 
 # Uses freesurfer
 class MNIAverage(Config):
@@ -26,13 +34,9 @@ class MNIAverage(Config):
             **kwargs,
         )
 
-        # Always load (fast/required)
-        self.fiducials: Optional[List[mne.io._digitization.DigPoint]] = None
-        self.head_mri_t: Optional[mne.Transform] = None
-        self.mri_ras_t: Optional[mne.Transform] = None
-
         # Load on demand [using @property] (slow/rarely used)
-        self._bem: Optional[mne.bem.ConductorModel] = None
+        #self._bem: Optional[mne.bem.ConductorModel] = None
+        self._bem_model: dict = None
         self._t1 = None
         self._wm = None
         self._info = None
@@ -56,17 +60,13 @@ class MNIAverage(Config):
         self.mri_ras_t_path = op.join(self.cerebra_data_path, "mri_ras-trans.fif")
 
         # Output paths
-        self._bem_solution_path = op.join(
+        self._bem_model_path = op.join(
             self.mniaverage_output_path,
-            f"{self.name}.fif",
+            f"{self.bem_name}.pkl",
         )
 
         # Mapping for making sure bem indices refer to the same surface every time
-        self.bem_names = {1: "outer_skin", 2: "outer_skull", 3: "inner_skull"}
-
-        self._set_fiducials()
-        self._set_head_mri_t()
-        self._set_mri_ras_t()
+        self.bem_layer_names = {1: "outer_skin", 2: "outer_skull", 3: "inner_skull"}
 
     # * PROPERTIES
     @property
@@ -79,7 +79,7 @@ class MNIAverage(Config):
         return "bem_" + "".join([str(x) + "_" for x in self.bem_conductivity])[:-1]
 
     @property
-    def name(self) -> str:
+    def bem_name(self) -> str:
         """Property to get the enhanced name of the class instance.
         Returns:
             str: Enhanced name of the class instance, including BEM conductivity and icosahedron level.
@@ -87,10 +87,20 @@ class MNIAverage(Config):
         return f"{self.bem_conductivity_string}_ico_{self.bem_ico}"
 
     @property
-    def bem(self):
-        if self._bem is None:
-            self._set_bem()
-        return self._bem
+    @cache_pkl()
+    def bem_model(self):
+        def compute_fn(self):
+            import mne
+            logging.info("Generating boundary element model... | %s", self.bem_name)
+            bem_model = mne.make_bem_model(
+                subject=self.subject_name,
+                ico=self.bem_ico,
+                conductivity=self.bem_conductivity,
+                subjects_dir=self.subjects_dir,
+            )
+            return bem_model
+            
+        return compute_fn, self._bem_model_path
 
     @property
     def t1(self):
@@ -104,99 +114,19 @@ class MNIAverage(Config):
             self._wm = nib.load(self.wm_path)
         return self._wm
 
-    @property
-    def info(self):
-        if self._info is None:
-            self._info = mne.io.read_info(self.info_path)
-        return self._info
+    # @property
+    # def info(self):
+    #     if self._info is None:
+    #         self._info = mne.io.read_info(self.info_path)
+    #     return self._info
 
-    # * SETTERS
-    def _set_bem(self):
-        """Internal method to set up the boundary element model (BEM)."""
-        if not op.exists(self._bem_solution_path):
-            logging.info("Generating boundary element model... | %s", self.name)
-            model = mne.make_bem_model(
-                subject=self.subject_name,
-                ico=self.bem_ico,
-                conductivity=self.bem_conductivity,
-                subjects_dir=self.subjects_dir,
-            )
-            self._bem = mne.make_bem_solution(model)
-            mne.write_bem_solution(
-                self._bem_solution_path, self.bem, overwrite=True, verbose=True
-            )
-        else:
-            logging.info("Loading boundary element model from disk | %s", self.name)
-            self._bem = mne.read_bem_solution(self._bem_solution_path, verbose=False)
+    def get_t1_volume_lia(self):
+        return np.array(self.t1.dataobj)
 
-    def _set_fiducials(self):
-        """Internal method to read manually aligned fiducials."""
-        self.fiducials, _coordinate_frame = mne.io.read_fiducials(self.fiducials_path)
+    def get_t1_volume_ras(self):
+        return move_volume_from_lia_to_ras(self.get_t1_volume_lia())
+    
 
-    def _set_head_mri_t(self):
-        """Internal method to read manually aligned fiducials."""
-        self.head_mri_t = mne.read_trans(self.head_mri_t_path)
-
-    def _set_mri_ras_t(self):
-        # MRI (surface RAS)->RAS (non-zero origin)
-        self.mri_ras_t = mne.read_trans(self.mri_ras_t_path)
-
-    # * TRANSFORMS
-    def mri_to_ras_nzo(self, pts: np.ndarray) -> np.ndarray:
-        """
-        Converts points from MRI (surface RAS) coordinates to RAS coordinates with non-zero origin.
-        Args:
-            pts (np.ndarray): Points in MRI (surface RAS) coordinates.
-        Returns:
-            np.ndarray: Points converted to RAS (non-zero origin) coordinates.
-        """
-        res = mne.transforms.apply_trans(self.mri_ras_t["trans"], pts) * 1000
-        return res
-
-    def ras_nzo_to_mri(self, pts: np.ndarray) -> np.ndarray:
-        """
-        # TODO: Update docstring
-        Converts points from MRI (surface RAS) coordinates to RAS coordinates with non-zero origin.
-        Args:
-            pts (np.ndarray): Points in MRI (surface RAS) coordinates.
-        Returns:
-            np.ndarray: Points converted to RAS (non-zero origin) coordinates.
-        """
-        # print(np.linalg.inv(self.src["mri_ras_t"]), pts)
-        return (
-            mne.transforms.apply_trans(np.linalg.inv(self.mri_ras_t["trans"]), pts)
-            / 1000
-        )
-
-    def apply_head_mri_t(self, pts: np.ndarray) -> np.ndarray:
-        return mne.transforms.apply_trans(self.head_mri_t, pts) / 1000
-
-    # * METHODS
-    def get_bem_surfaces_ras_nzo(
-        self, transform: Optional[mne.Transform] = None
-    ) -> np.ndarray:
-        """
-        Retrieves the BEM surfaces in RAS coordinates with non-zero origin, with an optional transformation.
-
-        Args:
-            transform (Optional[mne.Transform]): An optional transformation to apply to the BEM surfaces.
-
-        Returns:
-            np.ndarray: An array of BEM surfaces in RAS (non-zero origin) coordinates.
-        """
-        surfaces = []
-        for surf in self.bem["surfs"]:
-            surf = surf["rr"]
-            bem_surface = self.mri_to_ras_nzo(
-                surf
-            )  # Move volume from MRI space to RAS (non-zero origin)
-            if transform is not None:
-                bem_surface = mne.transforms.apply_trans(transform, bem_surface).astype(
-                    int
-                )
-            surfaces.append(bem_surface)
-        surfaces = np.array(surfaces).astype(int)
-        return surfaces
 
 
 if __name__ == "__main__":
