@@ -83,10 +83,10 @@ class CerebrA(CerebraBase,Config):
     @cache_np()
     def cerebra_volume(self):
         def compute_fn(self):
-            cerebra_volume_ras,_ = self.get_cerebra_volume_ras()
-            wm_volume_ras = self.get_wm_volume_ras()
-            cerebra_volume_ras[(wm_volume_ras != 0) & (cerebra_volume_ras == 0)] = 103
-            return cerebra_volume_ras.astype(int)
+            cerebra_vox_ras,_ = self.get_cerebra_vox_affine_ras()
+            wm_vox_ras = self.get_wm_vox_affine_ras()
+            cerebra_vox_ras[(wm_vox_ras != 0) & (cerebra_vox_ras == 0)] = 103 # Whitematter
+            return cerebra_vox_ras.astype(int)
         return compute_fn, self._cerebra_volume_path
     
     @property

@@ -98,3 +98,10 @@ def lia_to_ras(volume, affine=None):
     
     return flipped_volume, new_affine
 
+
+def lia_points_to_ras_points(lia_pts):
+    ras_pts = lia_pts.copy()
+    ras_pts[:,0] = 255 - ras_pts[:,0] # LIA to RIA
+    ras_pts[:,1] = 255 - ras_pts[:,1] # RIA to RSA
+    ras_pts[:,1], ras_pts[:,2] = ras_pts[:,2], ras_pts[:,1].copy() # RSA to RAS
+    return ras_pts

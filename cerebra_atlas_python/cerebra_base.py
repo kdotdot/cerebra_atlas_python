@@ -8,7 +8,7 @@ import nibabel as nib
 import numpy as np
 import appdirs
 from .config import Config
-from .transforms import lia_to_ras, read_mri_info
+from .transforms import lia_to_ras, read_mri_info, lia_points_to_ras_points
 from .icbm152_bem import ICBM152BEM
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,8 @@ class CerebraBase(ICBM152BEM,Config):
 
         self.vox_ras_t, self.vox_mri_t, self.mri_ras_t,_,_ = read_mri_info(self._cerebra_img_path)
 
+        self.bem_colors = [[0,0.1,1],[0.1,0.2,0.9],[0.2,0.1,0.95]]
+
     @property
     def t1_img(self):
         if self._t1_img is None:
@@ -51,14 +53,36 @@ class CerebraBase(ICBM152BEM,Config):
             self._cerebra_img = nib.load(self._cerebra_img_path)
         return self._cerebra_img
     
-    def get_t1_volume_ras(self):
+    def apply_vox_ras_t(self, points):
+        return mne.transforms.apply_trans(self.vox_ras_t["trans"], points)
+    def apply_ras_vox_t(self, points):
+        return mne.transforms.apply_trans(np.linalg.inv(self.vox_ras_t["trans"]), points).astype(int)
+    def apply_vox_mri_t(self, points):
+        return mne.transforms.apply_trans(self.vox_mri_t["trans"], points)
+    def apply_mri_vox_t(self, points):
+        return mne.transforms.apply_trans(np.linalg.inv(self.vox_mri_t["trans"]), points).astype(int)
+    def apply_mri_ras_t(self, points):
+        return mne.transforms.apply_trans(self.mri_ras_t["trans"], points)
+    def apply_ras_mri_t(self, points):
+        return mne.transforms.apply_trans(np.linalg.inv(self.mri_ras_t["trans"]),points)
+    
+    def get_t1_vox_affine_ras(self):
         return lia_to_ras(self.t1_img.get_fdata(), self.t1_img.affine)
     
-    def get_wm_volume_ras(self):
+    def get_wm_vox_affine_ras(self):
         return lia_to_ras(self.wm_img.get_fdata(), self.wm_img.affine)
     
-    def get_cerebra_volume_ras(self):
+    def get_cerebra_vox_affine_ras(self):
         return lia_to_ras(self.cerebra_img.get_fdata(), self.cerebra_img.affine)
     
-    def get_bem_vertices_vox(self):
-        return mne.transforms.apply_trans(np.linalg.inv(self.vox_mri_t["trans"]), self.get_bem_vertices_mri()).astype(int)
+    def get_bem_vertices_vox_lia(self):
+        return np.array([self.apply_mri_vox_t(layer) for layer in self.get_bem_vertices_mri()]) 
+    
+    def get_bem_normals_vox_lia(self):
+        return np.array([self.apply_mri_vox_t(layer) for layer in self.get_bem_normals_mri()]) 
+    
+    def get_bem_vertices_vox_ras(self):
+        return np.array([lia_points_to_ras_points(layer) for layer in self.get_bem_vertices_vox_lia()]) 
+    
+    def get_bem_normals_vox_ras(self):
+        return np.array([lia_points_to_ras_points(layer) for layer in self.get_bem_normals_vox_lia()]) 
