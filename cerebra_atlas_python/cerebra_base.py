@@ -7,21 +7,15 @@ import mne
 import nibabel as nib
 import numpy as np
 import appdirs
-from .config import Config
 from .transforms import lia_to_ras, read_mri_info, lia_points_to_ras_points
 from .icbm152_bem import ICBM152BEM
 from .utils import point_cloud_to_voxel, merge_voxel_grids
 logger = logging.getLogger(__name__)
 
-class CerebraBase(ICBM152BEM,Config):
+class CerebraBase(ICBM152BEM):
     def __init__(self, **kwargs):
         self.cerebra_data_path: str = op.dirname(__file__) + "/cerebra_data"
         self.cache_path_cerebra: str = op.join(appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra")
-        Config.__init__(
-            self,
-            class_name=self.__class__.__name__,
-            **kwargs,
-        )
         ICBM152BEM.__init__(self, **kwargs)
 
         self._t1_img = None
