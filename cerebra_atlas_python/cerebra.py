@@ -79,12 +79,14 @@ class CerebrA(CerebraBase,Config):
         # Metadata
         self.region_ids = np.sort(self.label_details["CerebrA ID"].unique())
 
+        
+
     @property
     @cache_np()
     def cerebra_volume(self):
         def compute_fn(self):
             cerebra_vox_ras,_ = self.get_cerebra_vox_affine_ras()
-            wm_vox_ras = self.get_wm_vox_affine_ras()
+            wm_vox_ras,_ = self.get_wm_vox_affine_ras()
             cerebra_vox_ras[(wm_vox_ras != 0) & (cerebra_vox_ras == 0)] = 103 # Whitematter
             return cerebra_vox_ras.astype(int)
         return compute_fn, self._cerebra_volume_path
@@ -93,7 +95,7 @@ class CerebrA(CerebraBase,Config):
     @cache_np()
     def affine(self):
         def compute_fn(self):
-            _,affine = self.get_cerebra_volume_ras()
+            _,affine = self.get_cerebra_vox_affine_ras()
             return affine
         return compute_fn, self._cerebra_affine_path
 

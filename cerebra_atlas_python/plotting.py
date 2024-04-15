@@ -369,6 +369,7 @@ def plot_brain_slice_2d(
     plot_affine=False,
     plot_planes=False,
     plot_region_names=False,
+    region_names_text_size=14,
     src_space_points=None,
     bem_volume=None,
     highlighted_region_ids=None,
@@ -390,13 +391,16 @@ def plot_brain_slice_2d(
     use_latex_figures=True,
     add_grid=False,
     add_top_left_info=True,
+    top_left_info_text_size=14,
     add_coordinate_frame_info=True,
+    coordinate_frame_info_text_size=14,
     add_ax_labels=True,
     add_ax_ticks=True,
     volume_colors=None,
     t1_volume=None,
     narrow_ax=True,
     adjust_ax=True,
+    title=None
 ):
     x_label, y_label = get_ax_labels(axis)
 
@@ -432,6 +436,9 @@ def plot_brain_slice_2d(
     if not add_ax_ticks:
         ax.set_axis_off()
 
+    if title is not None:
+        ax.set_title(title)
+
     # Setting fixed value (constant value for plotting plane)
     plot_plane_values = None
     if fixed_value is not None:
@@ -452,44 +459,49 @@ def plot_brain_slice_2d(
 
     if add_coordinate_frame_info:
 
-        if axis==1:
-            xoffset= 40
-        elif axis ==2:
-            xoffset = 30
-        else:
-            xoffset = 0
+        # if axis==1:
+        #     xoffset= 40
+        # elif axis ==2:
+        #     xoffset = 30
+        # else:
+        #     xoffset = 0
 
-        coordinate_info_text_size = 14
 
-        y_offset = coordinate_info_text_size//2 +3
+        y_offset = coordinate_frame_info_text_size
 
         # BOTTOM
         ax.text(
-            max_x//2, y_offset, "\\"+f"textbf{{{inverse_codes[codes[y_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
+            min_x+(max_x-min_x)//2, min_y+y_offset, "\\"+f"textbf{{{inverse_codes[codes[y_label]]}}}",size=coordinate_frame_info_text_size, c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
         )
         # TOP
-        ax.text(max_x//2, max_y-y_offset, "\\"+f"textbf{{{codes[y_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
+        ax.text(min_x+(max_x-min_x)//2, max_y-y_offset, "\\"+f"textbf{{{codes[y_label]}}}",size=coordinate_frame_info_text_size, c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
 
         # LEFT
         ax.text(
-            y_offset + xoffset, max_y//2, "\\"+f"textbf{{{inverse_codes[codes[x_label]]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
+            min_x+y_offset, max_y//2, "\\"+f"textbf{{{inverse_codes[codes[x_label]]}}}",size=coordinate_frame_info_text_size, c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center'
         )
         # RIGHT
-        ax.text(max_x-(y_offset+xoffset), max_y//2, "\\"+f"textbf{{{codes[x_label]}}}", c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
+        ax.text(max_x-(y_offset), max_y//2, "\\"+f"textbf{{{codes[x_label]}}}",size=coordinate_frame_info_text_size, c="white" if plot_empty else "black",horizontalalignment='center',verticalalignment='center')
       
     if add_top_left_info:
-        print(f"{ax.get_xlim()=}")
         ax.text(
-            min_x + 30,
-            max_y - 30,
+            min_x + 10,
+            max_y - top_left_info_text_size*1.5,
             f"""{codes[axis]} ({ax_labels[axis]})= {fixed_value}
-            {"".join(codes)}
-            {f"mm to surface={pt_dist[1]:.2f}" if pt_dist is not None else ""}
             """,
             c="white" if plot_empty else "black",
-            horizontalalignment='center',
-            verticalalignment='center'
-        ).set_fontsize(10)
+            horizontalalignment='left',
+            verticalalignment='center',
+        ).set_fontsize(top_left_info_text_size)
+        ax.text(
+            min_x + 10,
+            min_y + top_left_info_text_size//4,
+           f"""{"".join(codes) + f"({cerebra_volume.shape[0]},{cerebra_volume.shape[1]},{cerebra_volume.shape[2]})"}
+            """,
+            c="white" if plot_empty else "black",
+            horizontalalignment='left',
+            verticalalignment='center',
+        ).set_fontsize(top_left_info_text_size)
 
     # NOTE: Having repeated values for scatterplots
     # (i.e. [x=1,y=1,c='white',x=1,y=1,c='red'...]) increase processing time
@@ -574,12 +586,14 @@ def plot_brain_slice_2d(
 
             npoints = len(highlighted_region_names) # points to chose from
 
-            if axis==0:
-                r = 96.5 # radius of the circle
-            elif axis==1:
-                r = 93
-            else:
-                r=96.5
+            # if axis==0:
+            #     r = 96.5 # radius of the circle
+            # elif axis==1:
+            #     r = 93
+            # else:
+            #     r=96.5
+            r=98
+            smaller_r=93
 
             t = np.linspace(0, 2*np.pi, npoints, endpoint=False)
 
@@ -590,7 +604,10 @@ def plot_brain_slice_2d(
             #else:
             x = r * np.cos(t) + 128
             y = r * np.sin(t) + 128
+            x_sm = smaller_r * np.cos(t) + 128
+            y_sm = smaller_r * np.sin(t) + 128
             circle_points = np.array([x,y]).T
+            circle_points_smaller = np.array([x_sm,y_sm]).T
             used_points = []
             used_ids = []
             for r_id, (region_name, region_centroid) in enumerate(zip(highlighted_region_names, highlighted_region_centroids)):
@@ -621,13 +638,16 @@ def plot_brain_slice_2d(
                     y_text,
                     f"{region_id}",
                     c="white" if plot_empty else "black",
-                    size=14,
+                    size=region_names_text_size,
                     verticalalignment="center",
                     horizontalalignment="center",
                 )
-                ax.scatter(x,y ,color=colors[highlighted_region_ids[r_id]], s=16)
+                x_sm = circle_points_smaller[min_i][0]
+                y_sm = circle_points_smaller[min_i][1]
                 # Plot straight line from point to centroid
-                ax.plot([x,region_centroid[x_label]],[y,region_centroid[y_label]],c="black",linewidth=0.5)
+                ax.plot([x_sm,region_centroid[x_label]],[y_sm,region_centroid[y_label]],c="black",linewidth=0.5)
+                ax.scatter(x_sm,y_sm ,color=colors[highlighted_region_ids[r_id]], s=48)
+
 
             print(used_ids)
             #print(x,y)
@@ -716,7 +736,6 @@ def plot_brain_slice_2d(
             #                     horizontalalignment="center",
             #                 )
             #         print(plotted_regions)
-
 
         new_xs_ys, new_cs, new_alphas, new_sizes = project_volume_2d(
             cerebra_slice,

@@ -10,6 +10,7 @@ import appdirs
 from .config import Config
 from .transforms import lia_to_ras, read_mri_info, lia_points_to_ras_points
 from .icbm152_bem import ICBM152BEM
+from .utils import point_cloud_to_voxel, merge_voxel_grids
 logger = logging.getLogger(__name__)
 
 class CerebraBase(ICBM152BEM,Config):
@@ -34,6 +35,11 @@ class CerebraBase(ICBM152BEM,Config):
         self.vox_ras_t, self.vox_mri_t, self.mri_ras_t,_,_ = read_mri_info(self._cerebra_img_path)
 
         self.bem_colors = [[0,0.1,1],[0.1,0.2,0.9],[0.2,0.1,0.95]]
+        self.cortical_color = [0.3,1,0.5]
+        self.non_cortical_color = [1,0.4,0.3]
+
+        self.fiducials,_ = mne.io.read_fiducials(op.join(self.subject_dir, "bem/icbm152-fiducials.fif"))
+        self.head_mri_trans = mne.read_trans(op.join(self.subject_dir, "bem/head_mri_t.fif"))
 
     @property
     def t1_img(self):
@@ -65,6 +71,10 @@ class CerebraBase(ICBM152BEM,Config):
         return mne.transforms.apply_trans(self.mri_ras_t["trans"], points)
     def apply_ras_mri_t(self, points):
         return mne.transforms.apply_trans(np.linalg.inv(self.mri_ras_t["trans"]),points)
+    def apply_head_mri_t(self, points):
+        return mne.transforms.apply_trans(self.head_mri_trans,points)
+    def apply_mri_head_t(self, points):
+        return mne.transforms.apply_trans(np.linalg.inv(self.head_mri_trans["trans"]),points)
     
     def get_t1_vox_affine_ras(self):
         return lia_to_ras(self.t1_img.get_fdata(), self.t1_img.affine)
@@ -86,3 +96,14 @@ class CerebraBase(ICBM152BEM,Config):
     
     def get_bem_normals_vox_ras(self):
         return np.array([lia_points_to_ras_points(layer) for layer in self.get_bem_normals_vox_lia()]) 
+    
+    def get_bem_volume_ras(self, include_layers = [0,1,2])-> np.ndarray:
+        for i, layer_pts in enumerate(self.get_bem_vertices_mri()[include_layers]):
+            layer_pts = self.apply_mri_vox_t(layer_pts)
+            layer_pts = lia_points_to_ras_points(layer_pts)
+            layer_vol = point_cloud_to_voxel(layer_pts, vox_value=i+1)
+            if i == 0:
+                volume = layer_vol
+            else:
+                volume = merge_voxel_grids(volume, layer_vol)
+        return volume

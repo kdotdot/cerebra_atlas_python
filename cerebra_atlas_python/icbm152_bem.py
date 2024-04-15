@@ -9,6 +9,7 @@ import mne
 import appdirs
 from .config import Config
 from .cache import cache_pkl, cache_mne_bem
+
 logger = logging.getLogger(__name__)
 
 class ICBM152BEM(Config):
@@ -71,4 +72,5 @@ class ICBM152BEM(Config):
         return np.array([surf["nn"] for surf in self.bem_model])
     def get_bem_triangles(self) -> np.ndarray:
         return np.array([surf["tris"] for surf in self.bem_model])
+
     

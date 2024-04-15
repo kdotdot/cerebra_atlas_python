@@ -257,7 +257,7 @@ def merge_voxel_grids(grid1: np.ndarray, grid2: np.ndarray) -> np.ndarray:
 
     # Make sure total number of voxels stayed the same
     # (No voxels overlap)
-    assert (merged_grid != 0).sum() == (grid1 != 0).sum() + (grid2 != 0).sum()
+    assert (merged_grid != 0).sum() == (grid1 != 0).sum() + (grid2 != 0).sum(),f"{(grid1 != 0).sum()= } {(grid2 != 0).sum()= } {(merged_grid != 0).sum()= }"
 
     return merged_grid
 

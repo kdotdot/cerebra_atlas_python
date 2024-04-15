@@ -59,7 +59,7 @@ def add_drawable(vis, *drawables: Drawable):
         vis.add_geometry(o3d_obj)
         R = o3d_obj.get_rotation_matrix_from_xyz((np.pi/2+ np.pi/16, np.pi , np.pi/2- np.pi/4))
         o3d_obj.rotate(R, center=(128, 128, 128))
-        o3d_obj.scale(0.5, center=(128, 128, 128))
+        o3d_obj.scale(0.8, center=(128, 128, 128))
 
     return vis
 
