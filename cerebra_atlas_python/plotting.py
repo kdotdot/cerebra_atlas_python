@@ -586,14 +586,13 @@ def plot_brain_slice_2d(
 
             npoints = len(highlighted_region_names) # points to chose from
 
-            # if axis==0:
-            #     r = 96.5 # radius of the circle
-            # elif axis==1:
-            #     r = 93
-            # else:
-            #     r=96.5
-            r=98
-            smaller_r=93
+            if axis==0:
+                r = 100.5 # radius of the circle
+            elif axis==1:
+                r = 98
+            else:
+                r=100
+            smaller_r=r-5
 
             t = np.linspace(0, 2*np.pi, npoints, endpoint=False)
 
@@ -646,7 +645,7 @@ def plot_brain_slice_2d(
                 y_sm = circle_points_smaller[min_i][1]
                 # Plot straight line from point to centroid
                 ax.plot([x_sm,region_centroid[x_label]],[y_sm,region_centroid[y_label]],c="black",linewidth=0.5)
-                ax.scatter(x_sm,y_sm ,color=colors[highlighted_region_ids[r_id]], s=48)
+                ax.scatter(x_sm,y_sm ,color=colors[highlighted_region_ids[r_id]], s=108)
 
 
             print(used_ids)

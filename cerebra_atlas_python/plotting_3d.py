@@ -25,14 +25,22 @@ class PointCloud(Drawable):
         self.points = points
         self.data = points
         Drawable.__init__(self,*args,**kwargs)
+
+        self.o3d = None
+
+        self._set_o3d()
     
-    def get_o3d(self):
+    def _set_o3d(self):
         points_o3d = o3d.utility.Vector3dVector(self.points)
         pc_o3d = o3d.geometry.PointCloud(points_o3d)
         pc_o3d.colors = o3d.utility.Vector3dVector(self.colors)
-        
-        # return pc_o3d.voxel_down_sample(voxel_size=100)
-        return pc_o3d
+        self.o3d = pc_o3d
+    
+    def get_o3d(self):
+        return self.o3d
+
+    def update_colors(self, colors):
+        self.o3d.colors = o3d.utility.Vector3dVector(colors)
 
 class Mesh(Drawable):
     def __init__(self, mesh_vertices: np.ndarray, mesh_normals:np.ndarray, mesh_triangles:np.ndarray, *args,**kwargs):
@@ -95,12 +103,14 @@ def create_plot(background_color=[1, 1, 1], draw_bounding_box=True):
 
 
 
-def run(vis, MAX_FRAME=int(1e6)):
-    for _ in range(MAX_FRAME):
+def run(vis, MAX_FRAME=int(1e6), update_fn=None, *update_fn_args, **update_fn_kwargs):
+    for frame in range(MAX_FRAME):
         vis.poll_events()
         vis.update_renderer()
         if not vis.poll_events():
             break
+        if update_fn is not None:
+            update_fn(vis,frame=frame, *update_fn_args,**update_fn_kwargs)
     vis.destroy_window()
 
 if __name__ == "__main__":

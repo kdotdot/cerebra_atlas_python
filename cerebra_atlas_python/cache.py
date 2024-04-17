@@ -7,17 +7,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def pkl_load(path):
+    with open(path, 'rb') as f:
+        res =  pickle.load(f)
+    return res
+def pkl_save(path, result):
+    with open(path, 'wb') as f:
+        res  =  pickle.dump(result, f)
+    return res
 
 def cache_pkl():
-    def load_data_fn(path):
-        with open(path, 'rb') as f:
-            res =  pickle.load(f)
-        return res
-    def save_data_fn(path, result):
-        with open(path, 'wb') as f:
-            res  =  pickle.dump(result, f)
-        return res
-    return _cache(load_data_fn, save_data_fn)
+    return _cache(pkl_load, pkl_save)
 
 def cache_np():
     def load_data_fn(path):
