@@ -899,6 +899,8 @@ def plot_volume_3d(
     volume,
     plot_whitematter=False,
     highlighted_regions_pts=None,
+    highlighted_regions_alphas=None,
+    highlighted_region_colors = None,
     density=8,
     alpha=0.1,
     ax=None,
@@ -919,11 +921,12 @@ def plot_volume_3d(
     cmap_colors = get_cmap_colors()
 
     if highlighted_regions_pts is not None:
-        for region_pts in highlighted_regions_pts:
+        for r_i, region_pts in enumerate(highlighted_regions_pts):
             xs = []
             ys = []
             zs = []
             cs = []
+            alphas = []
             first_pt = region_pts[0]
             val = int(volume[first_pt[0], first_pt[1], first_pt[2]])
             # Not all points are plotted for performance reasons
@@ -932,8 +935,14 @@ def plot_volume_3d(
                 xs.append(region_pts.T[0][i])
                 ys.append(region_pts.T[1][i])
                 zs.append(region_pts.T[2][i])
+                alphas.append(highlighted_regions_alphas[r_i])
+                if highlighted_region_colors is not None:
+                    cs.append(highlighted_region_colors[r_i])
+                else:
+                    cs.append(cmap_colors[val])
             # xs, ys, zs = region_pts.T[0], region_pts.T[1], region_pts.T[2]
-            ax.scatter(xs, ys, zs, color=cmap_colors[val], alpha=alpha)
+            print(f"{len(highlighted_regions_alphas)= } {len(xs)= }")
+            ax.scatter(xs, ys, zs, color=cs, alpha=alphas)
 
     if plot_regions:
         xs = []

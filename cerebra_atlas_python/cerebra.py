@@ -12,7 +12,8 @@ import matplotlib
 from .plotting import (
     plot_volume_3d,
     orthoview,
-    plot_brain_slice_2d
+    plot_brain_slice_2d,
+    get_cmap_colors_hex
 )
 from .utils import (
     point_cloud_to_voxel  
@@ -365,6 +366,19 @@ class CerebrA(CerebraBase,Config):
 
     def get_cortical_id_from_region_id(self, region_id):
         return (np.where(self.get_cortical_region_ids() == region_id)[0][0]) + 1
+    
+
+    def get_cortical_colors(self, rgba = False, rgb = False):
+        if rgba and rgb:
+            raise ValueError("Only one of {rgba,rgb} should be True")
+        colors= get_cmap_colors_hex()
+        if rgb:
+            colors = [matplotlib.colors.to_rgb(c) for c in colors]
+        if rgba:
+            colors = [matplotlib.colors.to_rgba(c) for c in colors]
+        cortical_colors = [colors[region_id] for region_id in self.get_cortical_region_ids()]
+        return cortical_colors
+        
 
 
     def find_region_centroid_from_name(self, region_name):
@@ -533,6 +547,7 @@ class CerebrA(CerebraBase,Config):
         plot_src_space: bool = False,
         plot_cortical: bool = False,
         plot_highlighted_regions: list[int] = None,
+        highlighted_regions_alphas:int = 1,
         **kwargs,
     ):
 
@@ -551,7 +566,8 @@ class CerebrA(CerebraBase,Config):
 
         highlighted_regions_pts = None
         if plot_highlighted_regions is not None:
-            highlighted_regions_pts = [self.get_points_from_region_id(region_id) for region_id in plot_highlighted_regions]
+            downsample_factor = 8
+            highlighted_regions_pts = [self.get_points_from_region_id(region_id)[::downsample_factor] for region_id in plot_highlighted_regions]
 
         return plot_volume_3d(
             self.cerebra_volume,
@@ -560,6 +576,7 @@ class CerebrA(CerebraBase,Config):
             src_space_pc=src_space_pc,
             volume_colors=volume_colors,
             highlighted_regions_pts=highlighted_regions_pts,
+            highlighted_regions_alphas=highlighted_regions_alphas,
             **kwargs,
         )
 
