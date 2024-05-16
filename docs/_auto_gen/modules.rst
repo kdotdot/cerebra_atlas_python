@@ -2,6 +2,6 @@ cerebra_atlas_python
 ====================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
    cerebra_atlas_python

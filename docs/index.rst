@@ -10,13 +10,15 @@ Welcome to Cerebra Atlas Python's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   _auto_gen/modules
+   
+   getting_started
+   examples
+   _auto_gen/cerebra_atlas_python
 
 
+.. Indices and tables
+.. ==================
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. * :ref:`genindex`
+.. * :ref:`modindex`
+.. * :ref:`search`
