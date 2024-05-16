@@ -26,8 +26,4 @@ include-package-data = true
 where = ["."] # Point to the project root
 
 [tool.setuptools.package-data]
-"cerebra_atlas_python" = [
-    "cerebra_data/*",
-    "config.ini",
-    "cerebra_data/subjects",
-] # Path relative to the package
+"cerebra_atlas_python" = ["data/cerebra_data/*"] # Path relative to the package
