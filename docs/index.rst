@@ -1,13 +1,17 @@
-Documentación de mi proyecto
-============================
+.. Cerebra Atlas Python documentation master file, created by
+   sphinx-quickstart on Thu May 16 19:42:44 2024.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to Cerebra Atlas Python's documentation!
+================================================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
-   getting_started
-   examples
-   modules
+   _auto_gen/modules
+
 
 
 Indices and tables
