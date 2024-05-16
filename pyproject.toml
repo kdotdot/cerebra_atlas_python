@@ -26,4 +26,9 @@ include-package-data = true
 where = ["."] # Point to the project root
 
 [tool.setuptools.package-data]
-"cerebra_atlas_python" = ["data/cerebra_data/*"] # Path relative to the package
+"cerebra_atlas_python" = [
+    "data/cerebra_data/*",
+    "data/cerebra_data/FreeSurfer/subjects/icbm152/mri/*",
+    "data/cerebra_data/FreeSurfer/subjects/icbm152/mri/transforms/*",
+    "data/cerebra_data/FreeSurfer/subjects/icbm152/bem/*",
+] # Path relative to the package

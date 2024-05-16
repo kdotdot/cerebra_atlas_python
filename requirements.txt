@@ -6,5 +6,4 @@ nibabel>=5
 configparser>=6
 pandas>=2
 appdirs>=1.4
-sphinx>=7
-sphinx_rtd_theme>=2
+# Open3d
