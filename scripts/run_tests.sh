@@ -1,4 +1,4 @@
 cd tests
 pip install -r requirements.txt
-pytest
+PYTHONPATH=".." && pytest
 cd ..
