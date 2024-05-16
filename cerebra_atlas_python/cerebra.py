@@ -1,7 +1,7 @@
 """Main cerebra class
 """
 
-from cerebra_atlas_python.data import SourceSpace
+from .data import SourceSpace
 
 
 class CerebrA(SourceSpace):
