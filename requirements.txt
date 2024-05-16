@@ -1,8 +1,8 @@
 mne>=1.6.0
 matplotlib>=3.7
-matplotlib-inline>=0.1.6
-numpy>=1.26.1
-nibabel>=5.1.0
-configparser>=6.0.0
-pandas>=2.2.1
-appdirs>=1.4.4
+matplotlib-inline>=0.1
+numpy>=1.24
+nibabel>=5
+configparser>=6
+pandas>=2
+appdirs>=1.4
