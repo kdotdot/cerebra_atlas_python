@@ -1,7 +1,7 @@
 """Main cerebra class
 """
 
-from .data import SourceSpace
+from .data.source_space import SourceSpace
 
 
 class CerebrA(SourceSpace):
