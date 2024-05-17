@@ -6,10 +6,10 @@ from cerebra_atlas_python.data.freesurfer import FreeSurfer
 from cerebra_atlas_python.data.labels import Labels
 from cerebra_atlas_python.data.image import Image
 from cerebra_atlas_python.data.cerebra_data import CerebraData
-from cerebra_atlas_python.data.source_space import SourceSpace
+from cerebra_atlas_python.data.source_space import SourceSpaceData
 
 from cerebra_atlas_python.data._cache import _add_fn_hash_to_path
-from ..test_base import TestBase
+from tests.test_base import TestBase
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ class TestData(TestBase):
         """
         Test methods
         """
-        src_space = SourceSpace()
+        src_space = SourceSpaceData()
         self.assertIsNot(src_space.src_space_points, None)
         self.assertIsNot(src_space.src_space_labels, None)
         self.assertIsNot(src_space.src_space_points_lia, None)
