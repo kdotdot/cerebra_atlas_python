@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import unittest
 import logging
-from .test_base import TestBase
+from tests.test_base import TestBase
 
 from cerebra_atlas_python import CerebrA
 
@@ -12,6 +12,9 @@ class TestData(TestBase):
     """
     Test methods
     """
+
+    def test_logging(self):
+        logger.debug("Testing cerebra_atlas_python")
 
     def test_cerebra(self):
         """

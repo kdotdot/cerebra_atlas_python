@@ -9,14 +9,17 @@ class TestBase(unittest.TestCase):
     Base class for test methods
     """
 
+    def __init__(self, *args, **kwargs):
+        """Init for all tests"""
+        setup_logging("DEBUG")
+        super(TestBase, self).__init__(*args, **kwargs)
+
+
     def assertIsFile(self, path):
         """Assert file exists"""
         if not pl.Path(path).resolve().is_file():
             raise AssertionError("File does not exist: %s" % str(path))
 
-    def test_methods(self):
-        """Test methods"""
-        setup_logging("DEBUG")
 
 
 if __name__ == "__main__":
