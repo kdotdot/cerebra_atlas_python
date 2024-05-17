@@ -10,8 +10,9 @@ from ._cache import cache_np
 from ._transforms import volume_lia_to_ras
 from .cerebra_data import CerebraData
 
-
-class SourceSpace(CerebraData):
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-arguments
+class SourceSpaceData(CerebraData):
     """Uses CerebraData to generate the source space mask and points"""
 
     def __init__(
@@ -28,9 +29,13 @@ class SourceSpace(CerebraData):
         Args:
             data_path (_type_, optional): Path to cerebra data dir. Defaults to None.
             cache_path (_type_, optional): Path to cerebra cache dir. Defaults to None.
-            source_space_grid_size (int, optional): Grid size for generating the source space, bigger means more downsampling (less src space points). Defaults to 3.
-            source_space_include_wm (bool, optional): Whether to include whitematter in the source space. Defaults to False.
-            source_space_include_non_cortical (bool, optional):Whether to include non-cortical regions in the source space. Defaults to False.
+            source_space_grid_size (int, optional): Grid size for generating the source space, 
+                bigger means more downsampling (less src space points). Defaults to 3.
+            source_space_include_wm (bool, optional): Whether to include whitematter 
+                in the source space. Defaults to False.
+            source_space_include_non_cortical (bool, optional):Whether to include non-cortical 
+                regions in the source space. Defaults to False.
+            kwargs: Additional arguments to pass to CerebraData
         """
         self.cerebra_data_path = (
             op.dirname(__file__) + "/cerebra_data" if data_path is None else data_path
@@ -52,14 +57,9 @@ class SourceSpace(CerebraData):
         self.source_space_include_wm: bool = source_space_include_wm
         self.source_space_include_non_cortical: bool = source_space_include_non_cortical
 
-        # Load on demand [using @cached_property] (slow)
-        self._src_space_points = None
-        self._src_space_mask = None
-        self._src_space_mask_lia = None
-        self._src_space_labels = None
-        self._src_space_n_points_per_region = None
-
-        self.src_space_string = f"src_space_{self.source_space_grid_size}mm{'wm' if self.source_space_include_wm else ''}{'_nc' if self.source_space_include_non_cortical else ''}"
+        wm_str = "wm" if self.source_space_include_wm else ""
+        nc_str = "_nc" if self.source_space_include_non_cortical else ""
+        self.src_space_string = f"src_space_{self.source_space_grid_size}mm{wm_str}{nc_str}"
         self._src_space_mask_path = op.join(
             self.cache_path_cerebra, f"{self.src_space_string}_mask.npy"
         )
@@ -150,9 +150,13 @@ class SourceSpace(CerebraData):
         """
         return len(self.src_space_points)
 
+    # pylint: disable=too-many-locals
     def get_source_space_mask(self, coord_frame="ras") -> np.ndarray:
         """Get volume mask for source space in RAS or LIA space
-        Uses self.source_space_grid_size, self.source_space_include_wm, self.source_space_include_non_cortical
+        Uses: 
+        self.source_space_grid_size 
+        self.source_space_include_wm
+        self.source_space_include_non_cortical
 
         Args:
             coord_frame (str, optional): "ras" or "lia" coordinate frame. Defaults to "ras".

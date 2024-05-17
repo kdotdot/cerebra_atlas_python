@@ -1,4 +1,4 @@
 """Data things
 """
 
-from .source_space import SourceSpace
+from .source_space import SourceSpaceData
