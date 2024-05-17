@@ -2,9 +2,9 @@
 import unittest
 import logging
 import numpy as np
-from ..test_base import TestBase
-
 from cerebra_atlas_python.plotting.plotting import Plotting
+from tests.test_base import TestBase
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ class TestData(TestBase):
         Test methods
         """
         cerebra_plotting = Plotting()
+        logger.info("Plotting init ok")
 
    
 
