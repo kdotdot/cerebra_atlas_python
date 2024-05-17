@@ -1,0 +1,63 @@
+{
+  // Black Formatter
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  // Peacock
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#2f7c47",
+    "activityBar.background": "#2f7c47",
+    "activityBar.foreground": "#e7e7e7",
+    "activityBar.inactiveForeground": "#e7e7e799",
+    "activityBarBadge.background": "#422c74",
+    "activityBarBadge.foreground": "#e7e7e7",
+    "commandCenter.border": "#e7e7e799",
+    "sash.hoverBorder": "#2f7c47",
+    "statusBar.background": "#215732",
+    "statusBar.foreground": "#e7e7e7",
+    "statusBarItem.hoverBackground": "#2f7c47",
+    "statusBarItem.remoteBackground": "#215732",
+    "statusBarItem.remoteForeground": "#e7e7e7",
+    "titleBar.activeBackground": "#215732",
+    "titleBar.activeForeground": "#e7e7e7",
+    "titleBar.inactiveBackground": "#21573299",
+    "titleBar.inactiveForeground": "#e7e7e799"
+  },
+  // Flake8
+  "flake8.args": [
+    "--max-line-length=120",
+  ],
+  "mypy.dmypyExecutable": "/usr/bin/dmypy",
+  // "mypy-type-checker.args": [],
+  // "mypy.enabled": true,
+  // "mypy.dmypyExecutable": "dmypy",
+  // Pylance
+  "python.analysis.typeCheckingMode": "standard",
+  "python.analysis.autoImportCompletions": true,
+  // "python.analysis.autoImportCompletions": false,
+  // 
+  "python.analysis.autoFormatStrings": true,
+  // "pylint.args": [
+  //   "--typeCheckingMode=strict"
+  // ],
+  // "pylint.args": [
+  //   "--max-line-length=10",
+  //   // "--disable=W0123",
+  //   // "--reportUnknownParameterType=1",
+  //   // "--autoImportCompletions=True",
+  //   // "--typeCheckingMode=standard",
+  //   // "--autoFormatStrings=True",
+  // ],
+  // "python.linting.mypyArgs": [
+  //   "--ignore-missing-imports",
+  //   "--follow-imports=silent",
+  //   "--show-column-numbers",
+  //   "--allow-subclassing-any",
+  //   "--allow-untyped-calls",
+  //   "--strict"
+  // ],
+  // "python.analysis.typeCheckingMode": "basic",
+  // "python.analysis.autoImportCompletions": true
+}
+// W0123: USE EVAL
+// whitespace before ':'Flake8(E203)

@@ -1,4 +1,4 @@
-.vscode/
+#.vscode/
 *.whl
 
 # Byte-compiled / optimized / DLL files
