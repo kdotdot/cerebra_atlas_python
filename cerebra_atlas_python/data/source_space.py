@@ -10,6 +10,7 @@ from ._cache import cache_np
 from ._transforms import volume_lia_to_ras
 from .cerebra_data import CerebraData
 
+
 # pylint: disable=too-many-instance-attributes
 # pylint: disable=too-many-arguments
 class SourceSpaceData(CerebraData):
@@ -29,11 +30,11 @@ class SourceSpaceData(CerebraData):
         Args:
             data_path (_type_, optional): Path to cerebra data dir. Defaults to None.
             cache_path (_type_, optional): Path to cerebra cache dir. Defaults to None.
-            source_space_grid_size (int, optional): Grid size for generating the source space, 
+            source_space_grid_size (int, optional): Grid size for generating the source space,
                 bigger means more downsampling (less src space points). Defaults to 3.
-            source_space_include_wm (bool, optional): Whether to include whitematter 
+            source_space_include_wm (bool, optional): Whether to include whitematter
                 in the source space. Defaults to False.
-            source_space_include_non_cortical (bool, optional):Whether to include non-cortical 
+            source_space_include_non_cortical (bool, optional):Whether to include non-cortical
                 regions in the source space. Defaults to False.
             kwargs: Additional arguments to pass to CerebraData
         """
@@ -59,7 +60,9 @@ class SourceSpaceData(CerebraData):
 
         wm_str = "wm" if self.source_space_include_wm else ""
         nc_str = "_nc" if self.source_space_include_non_cortical else ""
-        self.src_space_string = f"src_space_{self.source_space_grid_size}mm{wm_str}{nc_str}"
+        self.src_space_string = (
+            f"src_space_{self.source_space_grid_size}mm{wm_str}{nc_str}"
+        )
         self._src_space_mask_path = op.join(
             self.cache_path_cerebra, f"{self.src_space_string}_mask.npy"
         )
@@ -153,8 +156,8 @@ class SourceSpaceData(CerebraData):
     # pylint: disable=too-many-locals
     def get_source_space_mask(self, coord_frame="ras") -> np.ndarray:
         """Get volume mask for source space in RAS or LIA space
-        Uses: 
-        self.source_space_grid_size 
+        Uses:
+        self.source_space_grid_size
         self.source_space_include_wm
         self.source_space_include_non_cortical
 

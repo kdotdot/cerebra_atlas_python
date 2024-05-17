@@ -14,12 +14,10 @@ class TestBase(unittest.TestCase):
         setup_logging("DEBUG")
         super(TestBase, self).__init__(*args, **kwargs)
 
-
     def assertIsFile(self, path):
         """Assert file exists"""
         if not pl.Path(path).resolve().is_file():
             raise AssertionError("File does not exist: %s" % str(path))
-
 
 
 if __name__ == "__main__":

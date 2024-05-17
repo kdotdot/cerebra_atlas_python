@@ -22,8 +22,6 @@ class TestData(TestBase):
         cerebra_plotting = Plotting()
         logger.info("Plotting init ok")
 
-   
-
 
 if __name__ == "__main__":
     unittest.main()
