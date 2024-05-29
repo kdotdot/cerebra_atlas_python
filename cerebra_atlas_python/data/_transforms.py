@@ -3,7 +3,7 @@
 Transforms
 """
 from gzip import GzipFile
-from typing import Tuple
+from typing import Tuple, Dict
 import numpy as np
 from mne.transforms import (
     Transform,
@@ -13,8 +13,18 @@ from mne.transforms import (
 )
 
 
-def _get_mgz_header(fname: str) -> dict:
-    """Adapted from nibabel to quickly extract header info."""
+def _get_mgz_header(fname: str) -> Dict[str, np.ndarray]:
+    """Adapted from nibabel to quickly extract header info. from .mgz files
+
+    Args:
+        fname (str): Path to the MGZ file.
+
+    Returns:
+        Dict[str, np.ndarray]: A dictionary containing header information.
+
+    Raises:
+        OSError: If the filename does not end with '.mgz'.
+    """
     if not fname.endswith(".mgz"):
         raise OSError("Filename must end with .mgz")
     header_dtd = [
@@ -59,8 +69,24 @@ def _get_mgz_header(fname: str) -> dict:
     return header
 
 
-def read_mri_info(path: str, units: str = "m") -> tuple:
-    """Get tranforms from .mgz file"""
+def read_mri_info(
+    path: str, units: str = "m"
+) -> Tuple[Transform, Transform, Transform]:
+    """Get transforms from an MGZ file.
+
+    Args:
+        path (str): Path to the MGZ file.
+        units (str, optional): Units for the transforms. Defaults to "m" (meters).
+
+    Returns:
+        Tuple[Transform, Transform, Transform]:
+            - vox_ras_t: Transform from voxel to RAS (non-zero origin) space.
+            - vox_mri_t: Transform from voxel to MRI space.
+            - mri_ras_t: Transform from MRI to RAS (non-zero origin) space.
+
+    Raises:
+        ValueError: If `units` is not "m" or "mm".
+    """
     hdr = _get_mgz_header(path)
     n_orig = hdr["vox2ras"]
     t_orig = hdr["vox2ras_tkr"]
@@ -89,22 +115,31 @@ def read_mri_info(path: str, units: str = "m") -> tuple:
 
 
 def volume_lia_to_ras(volume: np.ndarray) -> np.ndarray:
-    """Move volume from Left Inferior Anterior to Right Anterior Superior space"""
+    """Move volume from Left Inferior Anterior to Right Anterior Superior space
+
+    Args:
+    volume (np.ndarray): Input volume in LIA space.
+
+    Returns:
+        np.ndarray: Transformed volume in RAS space.
+    """
     flipped_volume = np.rot90(volume, -1, axes=(1, 2))
     flipped_volume = np.flipud(flipped_volume)
     return flipped_volume
 
 
 def lia_to_ras(volume: np.ndarray, affine: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Move lia volume from Left Inferior Anterior to Right Anterior Superior space
-    Slso adjust and return affine
+    """Move a volume from Left Inferior Anterior (LIA) to Right Anterior Superior (RAS) space
+    and adjust the affine matrix accordingly.
 
     Args:
-        volume (np.ndarray): np.ndarray of shape (h, w, d)
-        affine (np.ndarray): Affine matrix for volume
+        volume (np.ndarray): Input volume in LIA space.
+        affine (np.ndarray): Affine matrix for the input volume.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: Transformed volume and affine
+        Tuple[np.ndarray, np.ndarray]:
+            - Transformed volume in RAS space.
+            - Adjusted affine matrix for the transformed volume.
     """
     flipped_volume = volume_lia_to_ras(volume)
 
@@ -126,7 +161,14 @@ def lia_to_ras(volume: np.ndarray, affine: np.ndarray) -> Tuple[np.ndarray, np.n
 
 
 def lia_points_to_ras_points(lia_pts: np.ndarray) -> np.ndarray:
-    """Convert LIA points to RAS points"""
+    """Convert points from Left Inferior Anterior (LIA) to Right Anterior Superior (RAS) space.
+
+    Args:
+        lia_pts (np.ndarray): Input points in LIA space.
+
+    Returns:
+        np.ndarray: Transformed points in RAS space.
+    """
     ras_pts = lia_pts.copy()
     ras_pts[:, 0] = 255 - ras_pts[:, 0]  # LIA to RIA
     ras_pts[:, 1] = 255 - ras_pts[:, 1]  # RIA to RSA
@@ -135,10 +177,26 @@ def lia_points_to_ras_points(lia_pts: np.ndarray) -> np.ndarray:
 
 
 def apply_trans(trans: np.ndarray, data: np.ndarray) -> np.ndarray:
-    """Apply transformation to data"""
+    """Apply transformation to data
+
+    Args:
+    trans (np.ndarray): Transformation matrix.
+    data (np.ndarray): Input data.
+
+    Returns:
+        np.ndarray: Transformed data.
+    """
     return mne_apply_trans(trans, data)
 
 
 def apply_inverse_trans(trans: np.ndarray, data: np.ndarray) -> np.ndarray:
-    """Apply inverse transformation to data"""
+    """Apply inverse transformation to data
+
+    Args:
+    trans (np.ndarray): Transformation matrix.
+    data (np.ndarray): Input data.
+
+    Returns:
+        np.ndarray: Transformed data.
+    """
     return mne_apply_trans(np.linalg.inv(trans), data)
