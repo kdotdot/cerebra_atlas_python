@@ -2,6 +2,7 @@
 """
 Alignment mne submodule for cerebra_atlas_python
 """
+import mne
 
 
 class Alignment:
