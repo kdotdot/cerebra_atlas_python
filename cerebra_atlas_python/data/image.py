@@ -16,11 +16,11 @@ class Image:
     """Handles CerebrA_in_t1.mgz image related operations
 
     Attributes:
-    _cerebra_img (nibabel.nifti1.Nifti1Image): Nibabel image object for CerebrA_in_t1.mgz.
-    _cerebra_img_path (str): Path to the CerebrA_in_t1.mgz file.
-    vox_ras_t (mne.transforms.Transform): Transform from voxel to RAS (non-zero origin) space.
-    vox_mri_t (mne.transforms.Transform): Transform from voxel to MRI space.
-    mri_ras_t (mne.transforms.Transform): Transform from MRI to RAS (non-zero origin) space.
+        _cerebra_img (nibabel.nifti1.Nifti1Image): Nibabel image object for CerebrA_in_t1.mgz.
+        _cerebra_img_path (str): Path to the CerebrA_in_t1.mgz file.
+        vox_ras_t (mne.transforms.Transform): Transform from voxel to RAS (non-zero origin) space.
+        vox_mri_t (mne.transforms.Transform): Transform from voxel to MRI space.
+        mri_ras_t (mne.transforms.Transform): Transform from MRI to RAS (non-zero origin) space.
     """
 
     def __init__(self, cerebra_data_path: str, image_name: str = "CerebrA_in_t1.mgz"):
