@@ -2,7 +2,7 @@
 import unittest
 import logging
 import numpy as np
-from cerebra_atlas_python.mne.cerebra_mne import MNE
+from cerebra_atlas_python.cerebra_mne.cerebra_mne import MNE
 from tests.test_base import TestBase
 
 
