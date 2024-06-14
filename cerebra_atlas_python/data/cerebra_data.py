@@ -7,7 +7,6 @@ import logging
 import os.path as op
 from functools import cached_property
 from typing import Dict, Tuple
-import appdirs
 import numpy as np
 
 from ._cache import cache_np, cache_pkl
@@ -27,7 +26,7 @@ class CerebraData(Labels, Image, FreeSurfer):
         cache_path_cerebra (str): Path to cerebra cache dir
     """
 
-    def __init__(self, data_path=None, cache_path=None, **kwargs):
+    def __init__(self, cache_path:str, data_path=None, **kwargs):
         """Instantiates sub classes"""
 
         self.cerebra_data_path = (
@@ -38,11 +37,7 @@ class CerebraData(Labels, Image, FreeSurfer):
         Image.__init__(self, cerebra_data_path=self.cerebra_data_path, **kwargs)
         FreeSurfer.__init__(self, cerebra_data_path=self.cerebra_data_path, **kwargs)
 
-        self.cache_path_cerebra: str = (
-            op.join(appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra")
-            if cache_path is None
-            else cache_path
-        )
+        self.cache_path_cerebra: str = cache_path 
         # Output paths
         self._cerebra_volume_path = op.join(
             self.cache_path_cerebra, "cerebra_volume.npy"

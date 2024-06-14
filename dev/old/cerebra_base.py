@@ -24,13 +24,7 @@ class CerebraBase(ICBM152BEM):
         self.cortical_color = [0.3, 1, 0.5]
         self.non_cortical_color = [1, 0.4, 0.3]
 
-    def apply_head_mri_t(self, points):
-        return mne.transforms.apply_trans(self.head_mri_trans, points)
 
-    def apply_mri_head_t(self, points):
-        return mne.transforms.apply_trans(
-            np.linalg.inv(self.head_mri_trans["trans"]), points
-        )
 
     def get_bem_vertices_vox_lia(self):
         return np.array(

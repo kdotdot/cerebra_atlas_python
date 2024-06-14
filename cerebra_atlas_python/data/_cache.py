@@ -7,6 +7,7 @@ from typing import Callable, Dict, TypeVar
 import pickle
 import inspect
 import hashlib
+import mne
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,29 @@ def cache_pkl(
             pickle.dump(result, f)
 
     return _cache(compute_fn, cached_path, pkl_load, pkl_save, *args, **kwargs)
+
+
+def cache_mne_bem(
+    compute_fn: Callable[..., Dict[int, np.ndarray]], cached_path: str, *args, **kwargs
+) -> Dict[int, np.ndarray]:
+    def load_data_fn(path):
+        return mne.read_bem_solution(path, verbose=False)
+
+    def save_data_fn(path, result):
+        return mne.write_bem_solution(path, result, overwrite=True, verbose=True)
+
+    return _cache(compute_fn, cached_path, load_data_fn, save_data_fn, *args, **kwargs)
+
+def cache_mne_src(
+    compute_fn: Callable[..., Dict[int, np.ndarray]], cached_path: str, *args, **kwargs
+) -> Dict[int, np.ndarray]:
+    def load_data_fn(path):
+        return mne.read_source_spaces(path)
+
+    def save_data_fn(path, result):
+        return result.save(path, overwrite=True, verbose=False)
+
+    return _cache(compute_fn, cached_path, load_data_fn, save_data_fn, *args, **kwargs)
 
 
 T = TypeVar("T")

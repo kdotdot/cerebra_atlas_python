@@ -8,7 +8,7 @@ from typing import Tuple
 import nibabel as nib  # NOTE: nib typing does not work
 import mne
 import numpy as np
-from ._transforms import lia_to_ras
+from ._transforms import lia_to_ras, apply_trans, apply_inverse_trans
 
 
 class FreeSurfer:
@@ -68,4 +68,12 @@ class FreeSurfer:
 
     def get_wm_vox_affine_lia(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get wm volume (256,256,256) and affine in LIA space"""
-        return self.wm_img.get_fdata(), self.wm_img.affine  # type: ignore
+        return self.wm_img.get_fdata(), self.wm_img.affine
+    
+    def apply_head_mri_t(self, points):
+        """Apply head-mri transformation"""
+        return apply_trans(data=points, trans=self.head_mri_trans)
+
+    def apply_mri_head_t(self, points):
+        """Apply inverse head-mri transformation"""
+        return apply_inverse_trans(data=points, trans=self.head_mri_trans)
