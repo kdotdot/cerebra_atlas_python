@@ -3,10 +3,10 @@
 MNE submodule for cerebra_atlas_python
 Wraps source space, BEM, alignment, montage and Forward model
 """
-import os
 import os.path as op
 import tempfile
 import mne
+import os
 from .mne_forward import ForwardMNE
 from .mne_montage import MontageMNE
 

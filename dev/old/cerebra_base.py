@@ -20,9 +20,7 @@ class CerebraBase(ICBM152BEM):
 
         ICBM152BEM.__init__(self, **kwargs)
 
-        self.bem_colors = [[0, 0.1, 1], [0.1, 0.2, 0.9], [0.2, 0.1, 0.95]]
-        self.cortical_color = [0.3, 1, 0.5]
-        self.non_cortical_color = [1, 0.4, 0.3]
+
 
 
 
@@ -43,7 +41,7 @@ class CerebraBase(ICBM152BEM):
                 for layer in self.get_bem_vertices_vox_lia()
             ]
         )
-
+Plotting
     def get_bem_normals_vox_ras(self):
         return np.array(
             [

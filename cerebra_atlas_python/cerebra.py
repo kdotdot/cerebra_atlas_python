@@ -13,10 +13,12 @@ class CerebrA(SourceSpaceData, Plotting, MNE):
 
     def __init__(self, **kwargs):
 
-        self.cache_path = op.join(appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra")
+        self.cache_path = op.join(
+            appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra"
+        )
 
         SourceSpaceData.__init__(self, **kwargs)
-        
+
         Plotting.__init__(self, **kwargs)
         MNE.__init__(self, **kwargs)
 
@@ -32,4 +34,4 @@ class CerebrA(SourceSpaceData, Plotting, MNE):
 
 if __name__ == "__main__":
     cerebra = CerebrA()
-    cerebra.corregistration(montage_name="standard_1020")
+    cerebra.generate_fiducials()
