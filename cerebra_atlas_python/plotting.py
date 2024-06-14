@@ -759,3 +759,7 @@ def plot_volume_3d(
         ax.scatter(xs, ys, zs, c="red", alpha=alpha, s=0.5)
 
     return fig, ax
+
+
+def string_to_latex_bold(string):
+    return f"$\\textbf{{{string}}}$"
