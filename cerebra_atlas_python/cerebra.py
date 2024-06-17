@@ -3,12 +3,12 @@
 
 import os.path as op
 import appdirs
-from .data import SourceSpaceData
+from .data import CerebraData
 from .plotting import Plotting
 from .cerebra_mne import MNE
 
 
-class CerebrA(SourceSpaceData, Plotting, MNE):
+class CerebrA(CerebraData, Plotting, MNE):
     """Main cerebra class SA"""
 
     def __init__(self, **kwargs):
@@ -17,12 +17,10 @@ class CerebrA(SourceSpaceData, Plotting, MNE):
             appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra"
         )
 
-        SourceSpaceData.__init__(self, cache_path=self.cache_path, **kwargs)
+        CerebraData.__init__(self, cache_path=self.cache_path, **kwargs)
         Plotting.__init__(self, **kwargs)
         # SourceSpaceData should be initialized first
-        MNE.__init__(
-            self, cache_path=self.cache_path, subjects_dir=self.subjects_dir, **kwargs
-        )
+        MNE.__init__(self, cache_path=self.cache_path, cerebra_data=self, **kwargs)
 
     def corregistration(self, **kwargs):
         """Manually generate fiducials.fif and head-mri-trans.fif

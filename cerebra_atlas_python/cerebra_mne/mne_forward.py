@@ -3,17 +3,16 @@
 ForwardMNE submodule for cerebra_atlas_python
 """
 import os.path as op
-import mne
 from .mne_src_space import SourceSpaceMNE
 from .mne_bem import BEMMNE
-from .mne_montage import MontageMNE
+from ..data import CerebraData
 
 
 class ForwardMNE(SourceSpaceMNE, BEMMNE):
     def __init__(
         self,
         cache_path: str,
-        subjects_dir: str,
+        cerebra_data: CerebraData,
         montage_name: str | None = None,
         head_size: float | None = None,
         fixed_ori: bool = False,
@@ -24,10 +23,14 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         **kwargs,
     ):
         self.cache_path = cache_path
-        self.subjects_dir = subjects_dir
-        SourceSpaceMNE.__init__(self, **kwargs)
+        SourceSpaceMNE.__init__(
+            self, cerebra_data=cerebra_data, cache_path=self.cache_path, **kwargs
+        )
         BEMMNE.__init__(
-            self, cache_path=self.cache_path, subjects_dir=self.subjects_dir, **kwargs
+            self,
+            cache_path=self.cache_path,
+            subjects_dir=cerebra_data.subjects_dir,
+            **kwargs,
         )
 
         # self.fixed_ori = fixed_ori

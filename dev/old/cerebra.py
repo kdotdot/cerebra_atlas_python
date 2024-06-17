@@ -33,21 +33,6 @@ class CerebrA(CerebraBase, Config):
 
 
 
-    @property
-    @cache_mne_src()
-    def src_space(self):
-        def compute_fn(self):
-            src_space_pts = np.indices([256, 256, 256])[:, self.src_space_mask_lia].T
-            normals = np.repeat([[0, 0, 1]], len(src_space_pts), axis=0)
-
-            rr = point_cloud_to_voxel(src_space_pts)
-            rr = np.argwhere(rr != 0)
-            rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
-            pos = dict(rr=rr, nn=normals)
-            src_space = mne.setup_volume_source_space(pos=pos)
-            return src_space
-
-        return compute_fn, self._src_space_path
 
 
 

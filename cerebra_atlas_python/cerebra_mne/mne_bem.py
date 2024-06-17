@@ -49,7 +49,7 @@ class BEMMNE:
 
         return cache_pkl(compute_fn, self._bem_model_path, self)
 
-    @property
+    @cached_property
     def bem(self):
         def compute_fn(self):
             bem = mne.make_bem_solution(self.bem_model)

@@ -3,11 +3,13 @@
 import logging
 import os
 import os.path as op
-from typing import Callable, Dict, TypeVar
+from typing import Any, Callable, Dict, TypeVar
 import pickle
 import inspect
 import hashlib
 import mne
+from mne.bem import ConductorModel
+from mne import SourceSpaces
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -37,8 +39,8 @@ def cache_np(
 
 
 def cache_pkl(
-    compute_fn: Callable[..., Dict[int, np.ndarray]], cached_path: str, *args, **kwargs
-) -> Dict[int, np.ndarray]:
+    compute_fn: Callable[..., Any], cached_path: str, *args, **kwargs
+) -> Dict:
     """Cache pkl object to disk. If cached path exists, return it. Otherwise compute the result and save to disk."""
 
     def pkl_load(path):
@@ -54,19 +56,20 @@ def cache_pkl(
 
 
 def cache_mne_bem(
-    compute_fn: Callable[..., Dict[int, np.ndarray]], cached_path: str, *args, **kwargs
-) -> Dict[int, np.ndarray]:
-    def load_data_fn(path):
+    compute_fn: Callable[..., ConductorModel], cached_path: str, *args, **kwargs
+) -> ConductorModel:
+    def load_data_fn(path: str):
         return mne.read_bem_solution(path, verbose=False)
 
-    def save_data_fn(path, result):
+    def save_data_fn(path: str, result: ConductorModel):
         return mne.write_bem_solution(path, result, overwrite=True, verbose=True)
 
     return _cache(compute_fn, cached_path, load_data_fn, save_data_fn, *args, **kwargs)
 
+
 def cache_mne_src(
-    compute_fn: Callable[..., Dict[int, np.ndarray]], cached_path: str, *args, **kwargs
-) -> Dict[int, np.ndarray]:
+    compute_fn: Callable[..., SourceSpaces], cached_path: str, *args, **kwargs
+) -> SourceSpaces:
     def load_data_fn(path):
         return mne.read_source_spaces(path)
 

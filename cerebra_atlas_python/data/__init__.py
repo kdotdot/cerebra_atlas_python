@@ -1,4 +1,4 @@
 """Data things
 """
 
-from .source_space import SourceSpaceData
+from .cerebra_data import CerebraData

@@ -6,8 +6,8 @@ from cerebra_atlas_python.data.freesurfer import FreeSurfer
 from cerebra_atlas_python.data.labels import Labels
 from cerebra_atlas_python.data.image import Image
 from cerebra_atlas_python.data.cerebra_data import CerebraData
-from cerebra_atlas_python.data.source_space import SourceSpaceData
 from cerebra_atlas_python import CerebrA
+from cerebra_atlas_python.cerebra_mne.mne_src_space import SourceSpaceMNE
 
 from cerebra_atlas_python.data._cache import _add_fn_hash_to_path
 from tests.test_base import TestBase
@@ -101,7 +101,10 @@ class TestData(TestBase):
         """
         Test methods
         """
-        src_space = SourceSpaceData(cache_path=self.cerebra.cache_path)
+        cerebra_data = CerebraData(self.cerebra.cache_path)
+        src_space = SourceSpaceMNE(
+            cerebra_data=cerebra_data, cache_path=self.cerebra.cache_path
+        )
         self.assertIsNot(src_space.src_space_points, None)
         self.assertIsNot(src_space.src_space_labels, None)
         self.assertIsNot(src_space.src_space_points_lia, None)

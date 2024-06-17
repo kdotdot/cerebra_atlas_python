@@ -20,10 +20,6 @@ class CerebraBase(ICBM152BEM):
 
         ICBM152BEM.__init__(self, **kwargs)
 
-
-
-
-
     def get_bem_vertices_vox_lia(self):
         return np.array(
             [self.apply_mri_vox_t(layer) for layer in self.get_bem_vertices_mri()]
@@ -41,7 +37,7 @@ class CerebraBase(ICBM152BEM):
                 for layer in self.get_bem_vertices_vox_lia()
             ]
         )
-Plotting
+
     def get_bem_normals_vox_ras(self):
         return np.array(
             [

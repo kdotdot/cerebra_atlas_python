@@ -176,6 +176,43 @@ def lia_points_to_ras_points(lia_pts: np.ndarray) -> np.ndarray:
     return ras_pts
 
 
+def point_cloud_to_voxel(
+    point_cloud: np.ndarray, dtype=np.uint8, vox_value: int = 1
+) -> np.ndarray:
+    """
+    Transforms a given point cloud into a voxel array.
+
+    This function takes an array representing a point cloud where each point is a 3D coordinate,
+    and converts it into a voxel representation with a specified size of [256, 256, 256].
+    Each point in the point cloud is mapped to a voxel in this 3D grid. The values in the point
+    cloud array should be in the range [0, 257) (RAS).
+
+    Args:
+        point_cloud (np.ndarray): A numpy array of shape [n_points, 3] representing the point cloud,
+                                  where n_points is the number of points in the cloud and each point
+                                  is a 3D coordinate.
+        dtype (type, optional): The data type to be used for the voxel grid. Defaults to np.uint8.
+        vox_value (int): set value for voxel grid
+
+    Returns:
+        np.ndarray: A voxel array of shape [256, 256, 256] representing the 3D grid, where each
+                    element is set to 1 if it corresponds to a point in the input array, otherwise 0.
+    """
+    # Initialize a voxel grid of the specified size filled with zeros
+    voxel_grid = np.zeros((256, 256, 256), dtype=dtype)
+
+    # Iterate through each point in the point cloud
+    for point in point_cloud:
+        # Check if the point is within the valid range
+        if all(0 <= coord < 256 for coord in point):
+            # Convert the floating point coordinates to integers
+            x, y, z = map(int, point)
+            # Set the corresponding voxel to 1
+            voxel_grid[x, y, z] = vox_value
+
+    return voxel_grid
+
+
 def apply_trans(trans: np.ndarray, data: np.ndarray) -> np.ndarray:
     """Apply transformation to data
 

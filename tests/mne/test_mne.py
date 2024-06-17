@@ -25,9 +25,27 @@ class TestData(TestBase):
         Test methods
         """
         cerebra_mne = MNE(
-            cache_path=self.cerebra.cache_path, subjects_dir=self.cerebra.subjects_dir
+            cache_path=self.cerebra.cache_path, cerebra_data=self.cerebra.cerebra_data
         )
         logger.info("MNE init ok")
+
+    def test_bem(self):
+        """
+        Test methods
+        """
+        cerebra_mne = MNE(
+            cache_path=self.cerebra.cache_path, cerebra_data=self.cerebra.cerebra_data
+        )
+        logger.info("MNE init ok")
+        self.assertIsNot(cerebra_mne.bem, None)
+        self.assertIsNot(cerebra_mne.bem_model, None)
+        logger.info("BEM ok")
+        self.assertEqual(
+            cerebra_mne.get_bem_vertices_mri().shape,
+            cerebra_mne.get_bem_normals_mri().shape,
+        )
+        self.assertIsNot(cerebra_mne.get_bem_vertices_mri(), None)
+        self.assertIsNot(cerebra_mne.get_bem_triangles(), None)
 
 
 if __name__ == "__main__":
