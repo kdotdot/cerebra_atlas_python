@@ -29,9 +29,9 @@ class CerebrA(CerebraData, Plotting, MNE):
         assert (
             "montage" in kwargs or "montage_name" in kwargs
         ), "Either MME montage or montage_name should be provided for corregistration"
-        self._corregistration(subjects_dir=self.subjects_dir, **kwargs)
+        self._corregistration(**kwargs)
 
 
 if __name__ == "__main__":
     cerebra = CerebrA()
-    # cerebra.generate_fiducials()
+    cerebra.corregistration()

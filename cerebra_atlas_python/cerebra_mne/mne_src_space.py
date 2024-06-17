@@ -48,10 +48,10 @@ class SourceSpaceData:
         self.source_space_include_wm: bool = source_space_include_wm
         self.source_space_include_non_cortical: bool = source_space_include_non_cortical
 
-        wm_str = "wm" if self.source_space_include_wm else ""
-        nc_str = "_nc" if self.source_space_include_non_cortical else ""
+        self.wm_str = "wm" if self.source_space_include_wm else ""
+        self.nc_str = "_nc" if self.source_space_include_non_cortical else ""
         self.src_space_string = (
-            f"src_space_{self.source_space_grid_size}mm{wm_str}{nc_str}"
+            f"src_space_{self.source_space_grid_size}mm{self.wm_str}{self.nc_str}"
         )
         self._src_space_mask_path = op.join(
             self.cache_path, f"{self.src_space_string}_mask.npy"

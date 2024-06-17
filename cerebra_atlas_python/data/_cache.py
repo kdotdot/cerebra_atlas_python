@@ -9,7 +9,7 @@ import inspect
 import hashlib
 import mne
 from mne.bem import ConductorModel
-from mne import SourceSpaces
+from mne import SourceSpaces, Forward
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -77,6 +77,31 @@ def cache_mne_src(
         return result.save(path, overwrite=True, verbose=False)
 
     return _cache(compute_fn, cached_path, load_data_fn, save_data_fn, *args, **kwargs)
+
+
+def cache_mne_forward(
+    compute_fn: Callable[..., Forward],
+    cached_path: str,
+    fixed_ori=False,
+    *args,
+    **kwargs,
+) -> Forward:
+    def load_data_fn(path):
+        fwd = mne.read_forward_solution(path, verbose=False)
+
+        return fwd
+
+    def save_data_fn(path, result):
+        return mne.write_forward_solution(path, result, overwrite=True, verbose=False)
+
+    fwd = _cache(compute_fn, cached_path, load_data_fn, save_data_fn, *args, **kwargs)
+    if fixed_ori:
+        # Fixed Orientations
+        logger.debug("Converting to fixed orientation")
+        fwd = mne.convert_forward_solution(
+            fwd, surf_ori=True, force_fixed=True, use_cps=True
+        )
+    return fwd
 
 
 T = TypeVar("T")

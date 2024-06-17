@@ -36,9 +36,9 @@ class FreeSurfer:
         self.fiducials, _ = mne.io.read_fiducials(
             op.join(self.icbm152_dir, "bem/icbm152-fiducials.fif")
         )
-        self.head_mri_trans = mne.read_trans(
-            op.join(self.icbm152_dir, "bem/head_mri_t.fif")
-        )
+        # self.head_mri_trans = mne.read_trans(
+        #     op.join(self.icbm152_dir, "bem/head_mri_t.fif")
+        # )
 
     @property
     def t1_img(self):
@@ -70,10 +70,10 @@ class FreeSurfer:
         """Get wm volume (256,256,256) and affine in LIA space"""
         return self.wm_img.get_fdata(), self.wm_img.affine  # type: ignore
 
-    def apply_head_mri_t(self, points):
-        """Apply head-mri transformation"""
-        return apply_trans(data=points, trans=self.head_mri_trans)  # type: ignore
+    # def apply_head_mri_t(self, points):
+    #     """Apply head-mri transformation"""
+    #     return apply_trans(data=points, trans=self.head_mri_trans)  # type: ignore
 
-    def apply_mri_head_t(self, points):
-        """Apply inverse head-mri transformation"""
-        return apply_inverse_trans(data=points, trans=self.head_mri_trans)  # type: ignore
+    # def apply_mri_head_t(self, points):
+    #     """Apply inverse head-mri transformation"""
+    #     return apply_inverse_trans(data=points, trans=self.head_mri_trans)  # type: ignore

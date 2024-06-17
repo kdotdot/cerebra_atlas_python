@@ -25,12 +25,12 @@ class BEMMNE:
         self.bem_conductivity_string = (
             "bem_" + "".join([str(x) + "_" for x in self.bem_conductivity])[:-1]
         )
-        self.bem_name = f"{self.bem_conductivity_string}_ico_{self.bem_ico}"
-        self._bem_path = op.join(cache_path, f"{self.bem_name}_bem.fif")
+        self.bem_string = f"{self.bem_conductivity_string}_ico_{self.bem_ico}"
+        self._bem_path = op.join(cache_path, f"{self.bem_string}_bem.fif")
         # Output paths
         self._bem_model_path = op.join(
             cache_path,
-            f"{self.bem_name}.pkl",
+            f"{self.bem_string}.pkl",
         )
         # Mapping for making sure bem indices refer to the same surface every time
         self.bem_layer_names = {1: "outer_skin", 2: "outer_skull", 3: "inner_skull"}
