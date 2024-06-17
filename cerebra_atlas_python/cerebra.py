@@ -17,10 +17,12 @@ class CerebrA(SourceSpaceData, Plotting, MNE):
             appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra"
         )
 
-        SourceSpaceData.__init__(self, **kwargs)
-
+        SourceSpaceData.__init__(self, cache_path=self.cache_path, **kwargs)
         Plotting.__init__(self, **kwargs)
-        MNE.__init__(self, **kwargs)
+        # SourceSpaceData should be initialized first
+        MNE.__init__(
+            self, cache_path=self.cache_path, subjects_dir=self.subjects_dir, **kwargs
+        )
 
     def corregistration(self, **kwargs):
         """Manually generate fiducials.fif and head-mri-trans.fif
@@ -34,4 +36,4 @@ class CerebrA(SourceSpaceData, Plotting, MNE):
 
 if __name__ == "__main__":
     cerebra = CerebrA()
-    cerebra.generate_fiducials()
+    # cerebra.generate_fiducials()

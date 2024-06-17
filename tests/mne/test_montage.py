@@ -2,7 +2,6 @@
 import unittest
 import logging
 import numpy as np
-from cerebra_atlas_python.cerebra_mne.mne_alignment import Alignment
 from cerebra_atlas_python.cerebra_mne.mne_montage import MontageMNE
 from tests.test_base import TestBase
 

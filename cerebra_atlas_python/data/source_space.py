@@ -18,8 +18,8 @@ class SourceSpaceData(CerebraData):
 
     def __init__(
         self,
+        cache_path: str,
         data_path=None,
-        cache_path=None,
         source_space_grid_size: int = 3,
         source_space_include_wm: bool = False,
         source_space_include_non_cortical: bool = False,
@@ -41,16 +41,12 @@ class SourceSpaceData(CerebraData):
         self.cerebra_data_path = (
             op.dirname(__file__) + "/cerebra_data" if data_path is None else data_path
         )
-        self.cache_path_cerebra: str = (
-            op.join(appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra")
-            if cache_path is None
-            else cache_path
-        )
+        self.cache_path = cache_path
 
         CerebraData.__init__(
             self,
             data_path=self.cerebra_data_path,
-            cache_path=self.cache_path_cerebra,
+            cache_path=self.cache_path,
             **kwargs,
         )
 
@@ -64,16 +60,16 @@ class SourceSpaceData(CerebraData):
             f"src_space_{self.source_space_grid_size}mm{wm_str}{nc_str}"
         )
         self._src_space_mask_path = op.join(
-            self.cache_path_cerebra, f"{self.src_space_string}_mask.npy"
+            self.cache_path, f"{self.src_space_string}_mask.npy"
         )
         self._src_space_mask_lia_path = op.join(
-            self.cache_path_cerebra, f"{self.src_space_string}_lia_mask.npy"
+            self.cache_path, f"{self.src_space_string}_lia_mask.npy"
         )
         self._src_space_points_path = op.join(
-            self.cache_path_cerebra, f"{self.src_space_string}_src_pts.npy"
+            self.cache_path, f"{self.src_space_string}_src_pts.npy"
         )
         self._src_space_points_path_lia = op.join(
-            self.cache_path_cerebra, f"{self.src_space_string}_src_pts_lia.npy"
+            self.cache_path, f"{self.src_space_string}_src_pts_lia.npy"
         )
 
     @cached_property

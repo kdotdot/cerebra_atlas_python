@@ -8,15 +8,16 @@ import os.path as op
 from typing import Tuple
 import mne
 import numpy as np
-from ..data._cache import  cache_pkl,cache_mne_bem
+from ..data._cache import cache_pkl, cache_mne_bem
 
 logger = logging.getLogger(__name__)
 
+
 class BEMMNE:
-    def __init__(self,cache_path:str, subjects_dir:str, **kwargs):
+    def __init__(self, cache_path: str, subjects_dir: str, **kwargs):
         self.bem_conductivity: Tuple[float, float, float] = (0.33, 0.0042, 0.33)
         self.bem_ico: int = 4
-        self._bem_model: dict = None
+        self._bem_model: dict | None = None
         self._bem = None
         self.subjects_dir = subjects_dir
 
@@ -28,7 +29,7 @@ class BEMMNE:
         self._bem_path = op.join(cache_path, f"{self.bem_name}_bem.fif")
         # Output paths
         self._bem_model_path = op.join(
-           cache_path,
+            cache_path,
             f"{self.bem_name}.pkl",
         )
         # Mapping for making sure bem indices refer to the same surface every time
@@ -36,7 +37,7 @@ class BEMMNE:
 
     # * PROPERTIES
     @cached_property
-    def bem_model(self, subject_name='icbm152'):
+    def bem_model(self, subject_name="icbm152"):
         def compute_fn(self):
             logger.debug("Generating boundary element model... | %s", self.bem_name)
             return mne.make_bem_model(
@@ -46,7 +47,7 @@ class BEMMNE:
                 subjects_dir=self.subjects_dir,
             )
 
-        return cache_pkl(compute_fn, self._bem_model_path,self)
+        return cache_pkl(compute_fn, self._bem_model_path, self)
 
     @property
     def bem(self):

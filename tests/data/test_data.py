@@ -7,6 +7,7 @@ from cerebra_atlas_python.data.labels import Labels
 from cerebra_atlas_python.data.image import Image
 from cerebra_atlas_python.data.cerebra_data import CerebraData
 from cerebra_atlas_python.data.source_space import SourceSpaceData
+from cerebra_atlas_python import CerebrA
 
 from cerebra_atlas_python.data._cache import _add_fn_hash_to_path
 from tests.test_base import TestBase
@@ -21,11 +22,16 @@ class TestData(TestBase):
     cerebra_atlas_python/data/freesurfer.py
     """
 
+    def __init__(self, *args, **kwargs):
+        super(TestData, self).__init__(*args, **kwargs)
+        self.cerebra = CerebrA()
+
     def test_cerebralabels(self):
         """
         Test methods
         """
-        cerebra_data = CerebraData()
+
+        cerebra_data = CerebraData(self.cerebra.cache_path)
         cerebra_labels = Labels(cerebra_data.cerebra_data_path)
         for i in range(104):  # Assert 104 regions exist in df
             cerebra_labels.get_region_data_from_region_id(i)
@@ -37,7 +43,7 @@ class TestData(TestBase):
         """
         Test methods
         """
-        cerebra_data = CerebraData()
+        cerebra_data = CerebraData(self.cerebra.cache_path)
         cerebra_image = Image(cerebra_data.cerebra_data_path)
         self.assertNotEqual(cerebra_image.cerebra_img, None)
         vol, affine = cerebra_image.get_cerebra_vox_affine_ras()
@@ -55,7 +61,7 @@ class TestData(TestBase):
         """
         Test methods
         """
-        cerebra_data = CerebraData()
+        cerebra_data = CerebraData(self.cerebra.cache_path)
         fs = FreeSurfer(cerebra_data.cerebra_data_path)
         self.assertNotEqual(fs.t1_img, None)
         self.assertNotEqual(fs.wm_img, None)
@@ -66,7 +72,7 @@ class TestData(TestBase):
         """
         Test methods
         """
-        cerebra_data = CerebraData()
+        cerebra_data = CerebraData(self.cerebra.cache_path)
         self.assertIsNot(cerebra_data.cerebra_volume, None)
         self.assertIsNot(cerebra_data.affine, None)
         self.assertIsNot(cerebra_data.cerebra_sparse, None)
@@ -95,7 +101,7 @@ class TestData(TestBase):
         """
         Test methods
         """
-        src_space = SourceSpaceData()
+        src_space = SourceSpaceData(cache_path=self.cerebra.cache_path)
         self.assertIsNot(src_space.src_space_points, None)
         self.assertIsNot(src_space.src_space_labels, None)
         self.assertIsNot(src_space.src_space_points_lia, None)
