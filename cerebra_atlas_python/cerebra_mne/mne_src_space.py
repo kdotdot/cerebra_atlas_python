@@ -9,8 +9,10 @@ from cerebra_atlas_python.data._cache import cache_np, cache_mne_src
 from cerebra_atlas_python.data._transforms import (
     point_cloud_to_voxel,
     volume_lia_to_ras,
+    move_volume_from_ras_to_lia,
 )
 from cerebra_atlas_python.data.cerebra_data import CerebraData
+from ..data._transforms import apply_trans, apply_inverse_trans
 
 
 # pylint: disable=too-many-instance-attributes
@@ -74,9 +76,7 @@ class SourceSpaceData:
         Returns:
             np.ndarray: (256,256,256) mask in RAS space
         """
-        return cache_np(
-            volume_lia_to_ras, self._src_space_mask_path, self.src_space_mask_lia
-        )
+        return cache_np(self.get_source_space_mask, self._src_space_mask_path, "ras")
 
     @cached_property
     def src_space_mask_lia(self) -> np.ndarray:
@@ -86,7 +86,9 @@ class SourceSpaceData:
         Returns:
             np.ndarray: (256,256,256) mask in LIA space
         """
-        return cache_np(self.get_source_space_mask, self._src_space_mask_lia_path)
+        return cache_np(
+            self.get_source_space_mask, self._src_space_mask_lia_path, "lia"
+        )
 
     @cached_property
     def src_space_points_lia(self) -> np.ndarray:
@@ -103,7 +105,7 @@ class SourceSpaceData:
 
     @cached_property
     def src_space_points(self) -> np.ndarray:
-        """Array of length N x 3 containing N points in LIA space
+        """Array of length N x 3 containing N points in RAS space
 
         Returns:
             np.ndarray: points in RAS space
@@ -132,7 +134,7 @@ class SourceSpaceData:
         return len(self.src_space_points)
 
     # pylint: disable=too-many-locals
-    def get_source_space_mask(self, coord_frame="ras") -> np.ndarray:
+    def get_source_space_mask(self, coord_frame="lia") -> np.ndarray:
         """Get volume mask for source space in RAS or LIA space
         Uses:
         self.source_space_grid_size
@@ -228,9 +230,10 @@ class SourceSpaceMNE(SourceSpaceData):
     def __init__(self, **kwargs):
         SourceSpaceData.__init__(self, **kwargs)
 
+        self.use_cache = False
         self._src_space_path = op.join(self.cache_path, f"{self.src_space_string}.fif")
 
-    @cached_property
+    @property  # cached_property
     def src_space(self):
         def compute_fn(self):
             src_space_pts = np.indices([256, 256, 256])[:, self.src_space_mask_lia].T
@@ -240,7 +243,49 @@ class SourceSpaceMNE(SourceSpaceData):
             rr = np.argwhere(rr != 0)
             rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
             pos = dict(rr=rr, nn=normals)
-            src_space = mne.setup_volume_source_space(pos=pos)  # type: ignore (pos is float or dict)
+            src_space = mne.setup_volume_source_space(pos=pos)  # type: ignore
+            return src_space
+            print("Computing src space")
+            # normals = np.repeat([[0, 0, 1]], len(self.src_space_points), axis=0)
+
+            # rr = point_cloud_to_voxel(self.src_space_points)
+            # rr = move_volume_from_ras_to_lia(rr)
+            # # inv_aff = np.linalg.inv(self.affine)
+            # # # Translation
+            # # inv_aff[:, 3][2] = 132
+            # # # Rotation
+            # # inv_aff[:, 1][2] *= -1
+            # # inv_aff[:, 2][1] *= -1
+            # # inv_aff[:, 3][1] = -128
+            # rr = apply_trans(self.affine, rr)
+            # rr = np.argwhere(rr != 0)  # Back to point cloud
+            # rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
+            # pos = dict(rr=rr, nn=normals)
+            # src_space = mne.setup_volume_source_space(pos=pos)  # type: ignore (pos is float or dict)
+            # return src_space
+            normals = np.repeat([[0, 0, 1]], self.src_space_n_total_points, axis=0)
+
+            rr = point_cloud_to_voxel(self.src_space_points)
+            # rr = move_volume_from_ras_to_lia(rr)
+            rr = np.argwhere(rr != 0)  # Back to point cloud
+            # print(self.affine, self.t1_img.affine)
+            # inv_aff = np.linalg.inv(self.t1_img.affine)
+            # # Translation
+            # inv_aff[:, 3][2] = 132
+            # # Rotation
+            # inv_aff[:, 1][2] *= -1
+            # inv_aff[:, 2][1] *= -1
+            # inv_aff[:, 3][1] = -128
+            # rr = mne.transforms.apply_trans(self.affine, rr)
+            # rr = rr / 1000
+            print(f"rr shape: {rr.shape} normals shape: {normals.shape}")
+
+            pos = dict(rr=rr, nn=normals)
+            src_space = mne.setup_volume_source_space(pos=pos)  # type: ignore
             return src_space
 
-        return cache_mne_src(compute_fn, self._src_space_path, self)
+        return (
+            cache_mne_src(compute_fn, self._src_space_path, self)
+            if self.use_cache
+            else compute_fn(self)
+        )
