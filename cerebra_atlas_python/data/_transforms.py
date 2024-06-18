@@ -213,6 +213,17 @@ def point_cloud_to_voxel(
     return voxel_grid
 
 
+def move_volume_from_ras_to_lia(volume: np.ndarray):
+    """
+    Transforms a volume from RAS  orientation to LIA orientation.
+
+    """
+    volume = np.flipud(volume)
+    volume = np.rot90(volume, 1, axes=(1, 2))
+
+    return volume
+
+
 def apply_trans(trans: np.ndarray, data: np.ndarray) -> np.ndarray:
     """Apply transformation to data
 

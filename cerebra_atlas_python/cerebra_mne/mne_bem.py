@@ -39,7 +39,7 @@ class BEMMNE:
     @cached_property
     def bem_model(self, subject_name="icbm152"):
         def compute_fn(self):
-            logger.debug("Generating boundary element model... | %s", self.bem_name)
+            logger.debug("Generating boundary element model... | %s", self.bem_string)
             return mne.make_bem_model(
                 subject=subject_name,
                 ico=self.bem_ico,

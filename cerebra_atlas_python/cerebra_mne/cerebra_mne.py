@@ -16,16 +16,37 @@ logger = logging.getLogger(__name__)
 
 
 class MNE(ForwardMNE):
-    def __init__(self, cerebra_data: CerebraData, **kwargs):
+    def __init__(
+        self, cerebra_data: CerebraData, montage_name=None, head_size=None, **kwargs
+    ):
         self.cerebra_data = cerebra_data
         ForwardMNE.__init__(self, cerebra_data=self.cerebra_data, **kwargs)
 
-    def get_forward(self, montage_name, head_size, sfreq=None):
+        self.montage_name = montage_name
+        self.head_size = head_size
+
+    @property
+    def trans_path(self):
+        return op.join(
+            self.cerebra_data.subjects_dir,
+            self.cerebra_data.subject_name,
+            f"corregistration/{self.montage_name}_{self.head_size}_trans.fif",
+        )
+
+    def get_forward(self, sfreq=None):
+        assert (
+            self.montage_name is not None and self.head_size is not None
+        ), "Montage name and head size should be provided for forward model"
         # Set info
         self.info = MontageMNE.get_info(
-            montage_name=self.montage_name, head_size=self.head_size
+            montage_name=self.montage_name, head_size=self.head_size, sfreq=sfreq
         )
         # Set trans
+        assert op.exists(
+            self.trans_path
+        ), f"self.trans_path does not exist:{self.trans_path}"
+        self.trans = mne.read_trans(op.join(self.trans_path))
+
         # Access forward
         return self.forward
 
@@ -39,12 +60,8 @@ class MNE(ForwardMNE):
             self.cerebra_data.subjects_dir, self.cerebra_data.subject_name, "trans.fif"
         )
         logger.info(f"Save trans file to {trans_default_path} after aligment")
-        trans_path = op.join(
-            self.cerebra_data.subjects_dir,
-            self.cerebra_data.subject_name,
-            f"corregistration/{montage_name}_{head_size}_trans.fif",
-        )
-        logger.info(f"Will be automatically renamed to {trans_path}")
+
+        logger.info(f"Will be automatically renamed to {self.trans_path}")
         mne.gui.coregistration(
             inst=info_path,
             subjects_dir=self.cerebra_data.subjects_dir,
@@ -53,4 +70,4 @@ class MNE(ForwardMNE):
         )
         os.remove(info_path)
         if op.exists(trans_default_path):
-            os.rename(trans_default_path, trans_path)
+            os.rename(trans_default_path, self.trans_path)

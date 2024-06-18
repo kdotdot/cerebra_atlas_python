@@ -55,31 +55,10 @@ def get_forward_fsaverage(
 
 
 def get_forward(
-    trans=None, src_space=None, bem=None, info=None, meg=False, eeg=True, n_jobs=-1
+    trans, src_space, bem, info, meg=False, eeg=True, n_jobs=-1
 ) -> mne.Forward:
-    if info is None:
-        info = MontageMNE.get_info()
-    if (trans is None) or (src_space is None) or (bem is None):
-        fs_dir = mne.datasets.fetch_fsaverage()
-        trans_fif_path = os.path.join(fs_dir, "bem", "fsaverage-trans.fif")
-        src_fif_path = os.path.join(fs_dir, "bem", "fsaverage-ico-5-src.fif")
-        bem_fif_path = os.path.join(
-            fs_dir, "bem", "fsaverage-5120-5120-5120-bem-sol.fif"
-        )
 
-        if trans is None:
-            logging.warning("trans not provided, using fsaverage")
-            trans = trans_fif_path
-        if src_space is None:
-            logging.warning("src_space not provided, using fsaverage")
-            # src = mne.setup_source_space(subject, spacing=sampling, surface='white',
-            #                         subjects_dir=subjects_dir, add_dist=False,
-            #                         n_jobs=-1)
-            src_space = src_fif_path
-        if bem is None:
-            logging.warning("bem not provided, using fsaverage")
-            bem = bem_fif_path
-
+    print("==================EEG", eeg)
     fwd = mne.make_forward_solution(
         info,
         trans=trans,
@@ -103,7 +82,7 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         head_size: float | None = None,
         fixed_ori: bool = False,
         meg: bool = False,
-        eeg: bool = False,
+        eeg: bool = True,
         n_jobs: int = -1,
         cache_result: bool = True,
         **kwargs,
@@ -128,14 +107,11 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         self.n_jobs: int = n_jobs
         self.cache_result: bool = cache_result
 
-        self.fwd_string = f"{self.montage_name}_{self.head_size}_{self.src_space_string}_{self.bem_string}-fwd"
-
         self.trans = None
         self.info = None
 
         # # Avoid recomputing/reloading fwd solution from disk
         # self._forward: mne.Forward | None = None
-        self._forward_path: str = op.join(self.cache_path, f"{self.fwd_string}.fif")
 
     def assert_all_set(self):
         if self.trans is None:
@@ -147,17 +123,21 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         if self.info is None and (self.montage_name is None or self.head_size is None):
             raise ValueError("Info is not set. (montage_name or head_size) is not set")
 
-    @cached_property
+    @property
+    def fwd_string(self):
+        return f"{self.montage_name}_{self.head_size}_{self.src_space_string}_{self.bem_string}-fwd"
+
+    @property
     def forward(self):
         # Source ori 2 = "FIFFV_MNE_FREE_ORI"
         # if self._forward is not None and self._forward["source_ori"] == 2 and self.fixed_ori:
         def compute_fn(self):
             self.assert_all_set()
             logger.debug("Generating forward solution")
-            if self.info is None:
-                self.info = MontageMNE.get_info(
-                    montage_name=self.montage_name, head_size=self.head_size
-                )
+            # if self.info is None:
+            #     self.info = MontageMNE.get_info(
+            #         montage_name=self.montage_name, head_size=self.head_size
+            #     )
             fwd = get_forward(
                 src_space=self.src_space,
                 bem=self.bem,
@@ -165,7 +145,10 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
                 meg=self.meg,
                 eeg=self.eeg,
                 n_jobs=self.n_jobs,
+                trans=self.trans,
             )
             return fwd
 
-        return cache_mne_forward(compute_fn, self._forward_path, self.fixed_ori, self)
+        forward_path: str = op.join(self.cache_path, f"{self.fwd_string}.fif")
+        print(forward_path)
+        return cache_mne_forward(compute_fn, forward_path, self.fixed_ori, self)
