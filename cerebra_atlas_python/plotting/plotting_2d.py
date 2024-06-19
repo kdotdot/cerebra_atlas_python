@@ -5,7 +5,7 @@
 import nibabel as nib
 import numpy as np
 
-from cerebra_atlas_python.plotting.plotting import get_cmap_colors
+from cerebra_atlas_python.plotting.colors import get_cmap_colors
 from .cerebra_plt import *
 from .volumes import *
 

@@ -4,6 +4,7 @@ ForwardMNE submodule for cerebra_atlas_python
 """
 from functools import cached_property
 import os
+from typing import Optional
 import mne
 import logging
 import os.path as op
@@ -78,8 +79,8 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         self,
         cache_path: str,
         cerebra_data: CerebraData,
-        montage_name: str | None = None,
-        head_size: float | None = None,
+        montage_name: Optional[str] = None,
+        head_size: Optional[float] = None,
         fixed_ori: bool = False,
         meg: bool = False,
         eeg: bool = True,

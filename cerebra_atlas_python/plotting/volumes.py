@@ -97,7 +97,7 @@ def project_volume_2d(
 
 
 def merge_points_optimized(
-    xs_ys_arr: Tuple[np.ndarray | None, np.ndarray],
+    xs_ys_arr: Tuple[Optional[np.ndarray], np.ndarray],
     cs_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
     alphas_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
     sizes_arr: Tuple[Optional[np.ndarray], Optional[np.ndarray]],
