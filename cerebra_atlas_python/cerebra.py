@@ -31,6 +31,26 @@ class CerebrA(CerebraData, Plotting, MNE):
         ), "Either MME montage or montage_name should be provided for corregistration"
         self._corregistration(**kwargs)
 
+    def _prepare_plot_data(self, **kwargs):
+        plot_data = {"affine": self.affine, "cerebra_volume": self.cerebra_volume}
+        return plot_data
+
+    def _plot(self, **kwargs):
+        plot_data = self._prepare_plot_data(**kwargs)
+        self._plot_data(plot_data=plot_data, **kwargs)
+
+    def orthoview(self, **kwargs):
+        """Plot 2D brain with orthoview"""
+        self._plot(kind="orthoview", **kwargs)
+
+    def plot2d(self, **kwargs):
+        """Plot 2D brain"""
+        self._plot(kind="2d", **kwargs)
+
+    def plot3d(self, **kwargs):
+        """Plot 3D brain"""
+        self._plot(kind="3d", **kwargs)
+
 
 if __name__ == "__main__":
     cerebra = CerebrA()

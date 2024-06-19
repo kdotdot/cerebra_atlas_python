@@ -50,7 +50,15 @@ class MNE(ForwardMNE):
         # Access forward
         return self.forward
 
-    def _corregistration(self, montage_name, head_size, sfreq=None):
+    def _corregistration(self, montage_name=None, head_size=None, sfreq=None):
+        assert (
+            montage_name is not None or self.montage_name is not None
+        ), "Montage name should be provided for corregistration"
+        montage_name = montage_name or self.montage_name
+        assert (
+            head_size is not None or self.head_size is not None
+        ), "Head size should be provided for corregistration"
+        head_size = head_size or self.head_size
         info = MontageMNE.get_info(
             montage_name=montage_name, head_size=head_size, sfreq=None
         )
