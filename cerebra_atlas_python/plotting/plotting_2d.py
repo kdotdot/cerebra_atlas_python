@@ -369,7 +369,7 @@ def plot_brain_slice_2d(
             ax.vlines(pt[x_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
             ax.hlines(pt[y_label], 0, 256, linestyles="dashed", alpha=0.4, colors="red")
 
-        ax.scatter(pt[x_label], pt[y_label])
+        ax.scatter(pt[x_label], pt[y_label], s=100)
 
         if pt_text is not None:
             ax.text(

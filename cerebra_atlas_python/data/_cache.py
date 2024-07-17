@@ -38,19 +38,22 @@ def cache_np(
     return _cache(compute_fn, cached_path, load_data_fn, save_data_fn, *args, **kwargs)
 
 
+# Export
+def pkl_save(path, result):
+    with open(path, "wb") as f:
+        pickle.dump(result, f)
+
+
+def pkl_load(path):
+    with open(path, "rb") as f:
+        res = pickle.load(f)
+    return res
+
+
 def cache_pkl(
     compute_fn: Callable[..., Any], cached_path: str, *args, **kwargs
 ) -> Dict:
     """Cache pkl object to disk. If cached path exists, return it. Otherwise compute the result and save to disk."""
-
-    def pkl_load(path):
-        with open(path, "rb") as f:
-            res = pickle.load(f)
-        return res
-
-    def pkl_save(path, result):
-        with open(path, "wb") as f:
-            pickle.dump(result, f)
 
     return _cache(compute_fn, cached_path, pkl_load, pkl_save, *args, **kwargs)
 

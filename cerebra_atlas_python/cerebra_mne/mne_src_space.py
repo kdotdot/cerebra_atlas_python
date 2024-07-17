@@ -126,6 +126,15 @@ class SourceSpaceData:
         return self.cerebra_data.cerebra_volume[self.src_space_mask]
 
     @cached_property
+    def src_space_labels_lia(self) -> np.ndarray:
+        """Array of length N containing label for each point in src_space_points
+
+        Returns:
+            np.ndarray: 1D array of region ids [0,103]. Length N.
+        """
+        return self.cerebra_data.cerebra_volume_lia[self.src_space_mask_lia]
+
+    @cached_property
     def src_space_n_total_points(self) -> int:
         """
         Returns:
@@ -151,11 +160,9 @@ class SourceSpaceData:
             np.ndarray: mask
         """
 
-        if coord_frame == "lia":
-            volume, _ = self.cerebra_data._get_wm_filled_cerebra_volume_aff_lia()
-        elif coord_frame == "ras":
-            volume = self.cerebra_data.cerebra_volume
-        else:
+        volume, _ = self.cerebra_data._get_wm_filled_cerebra_volume_aff_lia()
+
+        if coord_frame != "lia" and coord_frame != "ras":
             raise ValueError(f"Unknown {coord_frame=}")
 
         # Create grid (downsample available volume)
@@ -204,6 +211,9 @@ class SourceSpaceData:
             downsampled_whitematter_mask = np.logical_and(grid_mask, whitematter_mask)
             combined_mask = np.logical_or(combined_mask, downsampled_whitematter_mask)
 
+        if coord_frame == "ras":
+            combined_mask = volume_lia_to_ras(combined_mask)
+
         return combined_mask
 
     def get_src_space_n_points_per_region(self, region_ids: np.ndarray) -> np.ndarray:
@@ -236,14 +246,17 @@ class SourceSpaceMNE(SourceSpaceData):
     @property  # cached_property
     def src_space(self):
         def compute_fn(self):
-            src_space_pts = np.indices([256, 256, 256])[:, self.src_space_mask_lia].T
+            src_space_pts = np.indices([256, 256, 256])[
+                :, self.src_space_mask_lia
+            ].T  # Transform src space mask to pc
             normals = np.repeat([[0, 0, 1]], len(src_space_pts), axis=0)
 
-            rr = point_cloud_to_voxel(src_space_pts)
-            rr = np.argwhere(rr != 0)
-            rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
-            pos = dict(rr=rr, nn=normals)
-            src_space = mne.setup_volume_source_space(pos=pos)  # type: ignore
+            # rr = point_cloud_to_voxel(src_space_pts)
+            # rr = np.argwhere(rr != 0)
+            # rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
+
+            pos = dict(rr=src_space_pts, nn=normals)
+            src_space = mne.setup_volume_source_space(pos=pos, bem=self.bem)  # type: ignore
             return src_space
             print("Computing src space")
             # normals = np.repeat([[0, 0, 1]], len(self.src_space_points), axis=0)

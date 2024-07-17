@@ -58,20 +58,20 @@ def get_2d_fig_ax(
     y_lims: Optional[Tuple[int, int]] = None,
 ) -> Tuple[Optional[Figure], Axes]:
     """
-    Creates a 2D figure and axes with optional LaTeX styling and grid.
+        Creates a 2D figure and axes with optional LaTeX styling and grid.
 
-    This function can take an existing matplotlib figure and axes objects or create new ones.
-    It sets the limits of the axes and optionally applies LaTeX styling and adds a grid.
+        This function can take an existing matplotlib figure and axes objects or create new ones.
+        It sets the limits of the axes and optionally applies LaTeX styling and adds a grid.
 
-    Parameters:
-    fig (Optional[plt.Figure]): An optional matplotlib figure object. Defaults to None.
-    ax (Optional[plt.Axes]): An optional matplotlib axes object. Defaults to None.
-    figsize (Tuple[int, int]): Size of the figure, defaults to (6, 6).
-    use_latex_figures (bool): If True, applies LaTeX styling to the figure. Defaults to True.
-    add_grid (bool): If True, adds a grid to the axes. Defaults to False.
-
-    Returns:
-    Tuple[plt.Figure, plt.Axes]: A tuple containing the matplotlib figure and axes objects.
+        Parameters:
+        fig (Optional[plt.Figure]): An optional matplotlib figure object. Defaults to None.
+        ax (Optional[plt.Axes]): An optional matplotlib axes object. Defaults to None.
+        figsize (Tuple[int, int]): Size of the figure, defaults to (6, 6).
+        use_latex_figures (bool): If True, applies LaTeX styling to the figure. Defaults to True.
+        add_grid (bool): If True, adds a grid to the axes. Defaults to False.
+    self.montage_name is not None and self.head_size is not None
+        Returns:
+        Tuple[plt.Figure, plt.Axes]: A tuple containing the matplotlib figure and axes objects.
     """
     if ax is None:
         fig = plt.figure()

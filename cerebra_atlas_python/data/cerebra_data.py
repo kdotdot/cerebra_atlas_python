@@ -26,7 +26,7 @@ class CerebraData(Labels, Image, FreeSurfer):
         cache_path_cerebra (str): Path to cerebra cache dir
     """
 
-    def __init__(self, cache_path:str, data_path=None, **kwargs):
+    def __init__(self, cache_path: str, data_path=None, **kwargs):
         """Instantiates sub classes"""
 
         self.cerebra_data_path = (
@@ -37,9 +37,12 @@ class CerebraData(Labels, Image, FreeSurfer):
         Image.__init__(self, cerebra_data_path=self.cerebra_data_path, **kwargs)
         FreeSurfer.__init__(self, cerebra_data_path=self.cerebra_data_path, **kwargs)
 
-        self.cache_path_cerebra: str = cache_path 
+        self.cache_path_cerebra: str = cache_path
         # Output paths
         self._cerebra_volume_path = op.join(
+            self.cache_path_cerebra, "cerebra_volume.npy"
+        )
+        self._cerebra_volume_lia_path = op.join(
             self.cache_path_cerebra, "cerebra_volume.npy"
         )
         self._cerebra_sparse_path = op.join(
@@ -50,6 +53,11 @@ class CerebraData(Labels, Image, FreeSurfer):
     def cerebra_volume(self) -> np.ndarray:
         """(256,256,256) voxel volume containg cerebra data in RAS space"""
         return cache_np(self._get_wm_cerebra_volume_ras, self._cerebra_volume_path)
+
+    @cached_property
+    def cerebra_volume_lia(self) -> np.ndarray:
+        """(256,256,256) voxel volume containg cerebra data in LIA space"""
+        return cache_np(self._get_wm_cerebra_volume_lia, self._cerebra_volume_lia_path)
 
     @cached_property
     def affine(self) -> np.ndarray:
@@ -95,3 +103,11 @@ class CerebraData(Labels, Image, FreeSurfer):
     def _get_wm_affine_ras(self) -> np.ndarray:
         """Get cerebra affine in RAS space"""
         return self._get_wm_filled_cerebra_volume_aff_ras()[1]
+
+    def _get_wm_cerebra_volume_lia(self) -> np.ndarray:
+        """Get cerebra volume filled with wm in RAS space"""
+        return self._get_wm_filled_cerebra_volume_aff_lia()[0]
+
+    def _get_wm_affine_lia(self) -> np.ndarray:
+        """Get cerebra affine in RAS space"""
+        return self._get_wm_filled_cerebra_volume_aff_lia()[1]

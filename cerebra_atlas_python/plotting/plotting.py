@@ -24,8 +24,21 @@ class Plotting(Plots2D, Plots3D):
             self,
             **kwargs,
         )
+        Plots3D.__init__(
+            self,
+            **kwargs,
+        )
 
-    def _plot_data(self, kind: str, **kwargs):
+    def _add_colors_to_plot_data(self, plot_data):
+        plot_data = {
+            **plot_data,
+            "bem_colors": self.bem_colors,
+            "cortical_color": self.cortical_color,
+            "non_cortical_color": self.non_cortical_color,
+        }
+        return plot_data
+
+    def _plot_data(self, kind: str, plot_data, **kwargs):
         """Plot data based on kind
 
         Args:
@@ -34,11 +47,12 @@ class Plotting(Plots2D, Plots3D):
         Raises:
             ValueError: Unsupported kind
         """
+        plot_data = self._add_colors_to_plot_data(plot_data)
         if kind == "2d":
-            self.plot_data_2d(**kwargs)
+            self.plot_data_2d(plot_data=plot_data, **kwargs)
         elif kind == "orthoview":
-            self.plot_data_orthoview(**kwargs)
+            self.plot_data_orthoview(plot_data=plot_data, **kwargs)
         elif kind == "3d":
-            self.plot_data_3d(**kwargs)
+            self.plot_data_3d(plot_data=plot_data, **kwargs)
         else:
             raise ValueError(f"kind {kind} not supported")

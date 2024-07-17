@@ -213,6 +213,40 @@ def point_cloud_to_voxel(
     return voxel_grid
 
 
+def merge_voxel_grids(grid1: np.ndarray, grid2: np.ndarray) -> np.ndarray:
+    """
+    Merges two voxel grids of the same size into one.
+
+    The merge operation is a logical OR between the corresponding elements of the two voxel grids.
+    If a voxel is set in either of the grids (value of 1), it will be set in the resulting merged grid.
+
+    Args:
+        grid1 (np.ndarray): The first voxel grid, expected to be of size [256, 256, 256].
+        grid2 (np.ndarray): The second voxel grid, expected to be of the same size as grid1.
+
+    Returns:
+        np.ndarray: The merged voxel grid of size [256, 256, 256].
+
+    Raises:
+        ValueError: If the input grids are not of the same shape.
+    """
+    if grid1.shape != grid2.shape:
+        raise ValueError("The two voxel grids must be of the same shape.")
+
+    # Perform logical OR operation to merge the voxel grids
+    merged_grid = grid1 + grid2
+
+    # Make sure total number of voxels stayed the same
+    # (No voxels overlap)
+    assert (merged_grid != 0).sum() == (grid1 != 0).sum() + (
+        grid2 != 0
+    ).sum(), (
+        f"{(grid1 != 0).sum()= } {(grid2 != 0).sum()= } {(merged_grid != 0).sum()= }"
+    )
+
+    return merged_grid
+
+
 def move_volume_from_ras_to_lia(volume: np.ndarray):
     """
     Transforms a volume from RAS  orientation to LIA orientation.

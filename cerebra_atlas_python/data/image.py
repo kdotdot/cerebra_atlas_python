@@ -23,7 +23,9 @@ class Image:
         mri_ras_t (mne.transforms.Transform): Transform from MRI to RAS (non-zero origin) space.
     """
 
-    def __init__(self, cerebra_data_path: str, image_name: str = "CerebrA_in_t1.mgz"):
+    def __init__(
+        self, cerebra_data_path: str, image_name: str = "CerebrA_in_t1.mgz", **kwargs
+    ):
         """
         Initialize the Image class.
 

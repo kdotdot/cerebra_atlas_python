@@ -109,7 +109,6 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         self.cache_result: bool = cache_result
 
         self.trans = None
-        self.info = None
 
         # # Avoid recomputing/reloading fwd solution from disk
         # self._forward: mne.Forward | None = None
@@ -121,7 +120,7 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
             raise ValueError("src_space is not set")
         if self.bem is None:
             raise ValueError("bem is not set")
-        if self.info is None and (self.montage_name is None or self.head_size is None):
+        if self.montage_name is None or self.head_size is None:
             raise ValueError("Info is not set. (montage_name or head_size) is not set")
 
     @property

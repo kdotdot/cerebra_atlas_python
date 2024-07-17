@@ -20,7 +20,7 @@ class FreeSurfer:
         icbm152_dir (str): ICBM152 subject dir
     """
 
-    def __init__(self, cerebra_data_path: str):
+    def __init__(self, cerebra_data_path: str, **kwargs):
         """Handles FreeSurfer related operations"""
 
         self.subjects_dir = op.join(cerebra_data_path, "FreeSurfer/subjects")

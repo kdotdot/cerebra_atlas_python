@@ -18,7 +18,7 @@ class Labels:
         region_ids (np.ndarray): Region ids np.arange([0,104])
     """
 
-    def __init__(self, cerebra_data_path: str, csv_name="label_details.csv"):
+    def __init__(self, cerebra_data_path: str, csv_name="label_details.csv", **kwargs):
         """_summary_
 
         Args:

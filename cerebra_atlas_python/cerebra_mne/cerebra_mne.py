@@ -8,9 +8,12 @@ import os.path as op
 import tempfile
 import mne
 import os
+
+import numpy as np
 from cerebra_atlas_python.data import CerebraData
 from .mne_forward import ForwardMNE
 from .mne_montage import MontageMNE
+from ..data._transforms import apply_trans
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,7 @@ class MNE(ForwardMNE):
 
         self.montage_name = montage_name
         self.head_size = head_size
+        self.sfreq = None
 
     @property
     def trans_path(self):
@@ -33,19 +37,28 @@ class MNE(ForwardMNE):
             f"corregistration/{self.montage_name}_{self.head_size}_trans.fif",
         )
 
-    def get_forward(self, sfreq=None):
+    @property
+    def info(self):
         assert (
             self.montage_name is not None and self.head_size is not None
-        ), "Montage name and head size should be provided for forward model"
-        # Set info
-        self.info = MontageMNE.get_info(
-            montage_name=self.montage_name, head_size=self.head_size, sfreq=sfreq
+        ), "Montage name and head size should be provided for montage info"
+        return MontageMNE.get_info(
+            montage_name=self.montage_name, head_size=self.head_size, sfreq=self.sfreq
         )
+
+    @property
+    def head_mri_trans(self) -> mne.Transform:
         # Set trans
         assert op.exists(
             self.trans_path
         ), f"self.trans_path does not exist:{self.trans_path}"
         self.trans = mne.read_trans(op.join(self.trans_path))
+        return self.trans
+
+    def apply_head_mri_trans(self, points):
+        return apply_trans(self.head_mri_trans, points)
+
+    def get_forward(self):
 
         # Access forward
         return self.forward
