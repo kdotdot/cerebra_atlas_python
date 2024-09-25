@@ -44,6 +44,7 @@ cerebra.orthoview()
 - Freesurfer (optional)
 
 ### INSTALL
+Tested for Python 3.10.14
 
 #### Building wheels
 
@@ -51,9 +52,7 @@ cerebra.orthoview()
 $ git clone https://github.com/kdotdot/cerebra_atlas_python.git
 $ cd cerebra_atlas_python
 $ pip install -r requirements.txt
-$ pip install build
-$ python -m build
-$ pip install .
+$ pip install --editable .
 ```
 
 ### COMPUTING BRAIN DATA (optional)
