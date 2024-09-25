@@ -53,6 +53,7 @@ def plot_brain_slice_2d(
     adjust_ax=True,
     title=None,
     title_size=35,
+    hide_ax=True,
 ):
 
     assert (
@@ -93,6 +94,12 @@ def plot_brain_slice_2d(
 
     if not add_ax_ticks:
         ax.set_axis_off()
+
+    if hide_ax:
+        ax.spines["left"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
 
     if title is not None:
         ax.set_title(title, size=title_size, pad=20)
@@ -434,6 +441,9 @@ def plot_brain_slice_2d(
     #     )
 
     if plot_affine:
+
+        AFFINE_COLOR = "#FF00FF"
+
         aff_translate = affine[:-1, 3]
         ax.hlines(
             abs(aff_translate[y_label]),
@@ -441,7 +451,7 @@ def plot_brain_slice_2d(
             256,
             linestyles="solid",
             alpha=0.5,
-            colors="#0FFF50",
+            colors=AFFINE_COLOR,
         )
         ax.vlines(
             abs(aff_translate[x_label]),
@@ -449,7 +459,7 @@ def plot_brain_slice_2d(
             256,
             linestyles="solid",
             alpha=0.5,
-            colors="#0FFF50",
+            colors=AFFINE_COLOR,
         )
 
     return fig, ax

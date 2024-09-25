@@ -52,6 +52,7 @@ class Plots3D:
             colors_cortical = np.array(
                 [colors_hex[label] for label in src_space_labels]
             )
+            print(f"{colors=} {colors_cortical=}")
             src_space_pc = PointCloud(
                 src_space_points, colors_cortical if colors is None else colors
             )
