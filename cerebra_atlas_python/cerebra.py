@@ -39,7 +39,7 @@ class CerebrA(CerebraData, Plotting, MNE):
         ), "Either MME montage or montage_name should be provided for corregistration"
         self._corregistration(**kwargs)
 
-    def _prepare_plot_data(self):
+    def _prepare_plot_data(self, plot_data_=None):
         plot_data = {
             "affine": self.affine,
             "cerebra_volume": self.cerebra_volume,
@@ -55,10 +55,14 @@ class CerebrA(CerebraData, Plotting, MNE):
             ),
             "fiducials": self.fiducials,
         }
+        if plot_data_ is not None:
+            plot_data = {**plot_data, **plot_data_}
         return plot_data
 
-    def _plot(self, **kwargs):
-        plot_data = self._prepare_plot_data()
+    def _plot(self, colors=None, plot_data=None, **kwargs):
+        plot_data = self._prepare_plot_data(plot_data)
+        if colors is not None:
+            plot_data["colors"] = colors
         self._plot_data(plot_data=plot_data, **kwargs)
 
     def orthoview(self, **kwargs):
@@ -69,9 +73,10 @@ class CerebrA(CerebraData, Plotting, MNE):
         """Plot 2D brain"""
         self._plot(kind="2d", **kwargs)
 
-    def plot3d(self, **kwargs):
+    def plot3d(self, rotate_mode=1, save_path=None, **kwargs):
         """Plot 3D brain"""
-        self._plot(kind="3d", **kwargs)
+        plot_data = {"rotate_mode": rotate_mode, "save_path": save_path}
+        self._plot(kind="3d", plot_data=plot_data, **kwargs)
 
     def get_bem_vertices_vox_lia(self):
         return np.array(

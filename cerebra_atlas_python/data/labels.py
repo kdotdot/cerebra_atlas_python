@@ -125,3 +125,9 @@ class Labels:
         cortical_region_ids = self.get_cortical_region_ids(hemisphere)
         non_cortical_region_ids = np.setdiff1d(self.region_ids, cortical_region_ids)
         return non_cortical_region_ids
+
+    def get_cortical_id_from_region_id(self, region_id):
+        return (np.where(self.get_cortical_region_ids() == region_id)[0][0]) + 1
+
+    def get_region_id_from_cortical_region_id(self, cortical_region_id):
+        return self.get_cortical_region_ids()[cortical_region_id - 1]

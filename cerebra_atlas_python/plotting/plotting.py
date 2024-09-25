@@ -7,6 +7,8 @@ Wraps 2D and 3D plotting
 import matplotlib
 from matplotlib.colors import ListedColormap
 import numpy as np
+
+from cerebra_atlas_python.plotting.colors import get_cmap_colors_hex
 from .plotting_2d import Plots2D
 from .plotting_3d import Plots3D
 
@@ -56,3 +58,16 @@ class Plotting(Plots2D, Plots3D):
             self.plot_data_3d(plot_data=plot_data, **kwargs)
         else:
             raise ValueError(f"kind {kind} not supported")
+
+    def get_cortical_colors(self, rgba=False, rgb=False):
+        if rgba and rgb:
+            raise ValueError("Only one of {rgba,rgb} should be True")
+        colors = get_cmap_colors_hex()
+        if rgb:
+            colors = [matplotlib.colors.to_rgb(c) for c in colors]
+        if rgba:
+            colors = [matplotlib.colors.to_rgba(c) for c in colors]
+        cortical_colors = [
+            colors[region_id] for region_id in self.get_cortical_region_ids()
+        ]
+        return cortical_colors

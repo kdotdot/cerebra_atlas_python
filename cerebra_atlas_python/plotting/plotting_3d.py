@@ -39,6 +39,9 @@ class Plots3D:
         bem_normals_vox_ras = plot_data["bem_normals_vox_ras"]
         info = plot_data["info"]
         fiducials = plot_data["fiducials"]
+        colors = plot_data.get("colors", None)
+        rotate_mode = plot_data.get("rotate_mode", 1)
+        save_path = plot_data.get("save_path", None)
 
         print()
 
@@ -49,7 +52,9 @@ class Plots3D:
             colors_cortical = np.array(
                 [colors_hex[label] for label in src_space_labels]
             )
-            src_space_pc = PointCloud(src_space_points, colors_cortical)
+            src_space_pc = PointCloud(
+                src_space_points, colors_cortical if colors is None else colors
+            )
             vis = add_drawable(
                 vis, src_space_pc, reset_bounding_box=True, translate=False
             )
@@ -118,5 +123,15 @@ class Plots3D:
                 translate=False,
             )
 
-        rotate_camera(vis)
-        run(vis)
+        rotate_camera(vis, rotate_mode=rotate_mode)
+        # run(vis)
+        if save_path is None:
+            run(vis)
+
+        else:
+
+            def update_fn(vis, frame):
+                vis.capture_screen_image(save_path)
+                vis.close()
+
+            run(vis, update_fn=update_fn)

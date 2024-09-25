@@ -111,3 +111,10 @@ class CerebraData(Labels, Image, FreeSurfer):
     def _get_wm_affine_lia(self) -> np.ndarray:
         """Get cerebra affine in RAS space"""
         return self._get_wm_filled_cerebra_volume_aff_lia()[1]
+
+    def get_region_centroid(self, region_id):
+        centroid = np.round(self.cerebra_sparse[region_id].mean(axis=0)).astype(
+            np.uint8
+        )
+
+        return centroid
