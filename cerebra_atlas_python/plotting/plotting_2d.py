@@ -252,7 +252,6 @@ def plot_brain_slice_2d(
             n_layers = n_layers_max
         else:
             n_layers = int(n_layers)
-        print(f"{fixed_value= } {cerebra_volume.shape= }")
         cerebra_slice = slice_volume(
             cerebra_volume, fixed_value=fixed_value, axis=axis, n_layers=n_layers
         )

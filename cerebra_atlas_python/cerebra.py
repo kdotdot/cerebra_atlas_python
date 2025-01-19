@@ -11,6 +11,7 @@ from .data._transforms import (
     merge_voxel_grids,
 )
 from .plotting import Plotting
+from .plotting.colors import normalize_colors_input
 from .cerebra_mne import MNE
 
 
@@ -18,13 +19,9 @@ class CerebrA(CerebraData, Plotting, MNE):
     """Main cerebra class SA"""
 
     def __init__(self, **kwargs):
-
-        print(kwargs)
-
         self.cache_path = op.join(
             appdirs.user_cache_dir("cerebra_atlas_python"), "cerebra"
         )
-
         CerebraData.__init__(self, cache_path=self.cache_path, **kwargs)
         Plotting.__init__(self, **kwargs)
         # SourceSpaceData should be initialized first
@@ -61,8 +58,7 @@ class CerebrA(CerebraData, Plotting, MNE):
 
     def _plot(self, colors=None, plot_data=None, **kwargs):
         plot_data = self._prepare_plot_data(plot_data)
-        if colors is not None:
-            plot_data["colors"] = colors
+        plot_data["colors"] = normalize_colors_input(self.src_space_labels, colors)
         self._plot_data(plot_data=plot_data, **kwargs)
 
     def orthoview(self, **kwargs):
@@ -73,9 +69,13 @@ class CerebrA(CerebraData, Plotting, MNE):
         """Plot 2D brain"""
         self._plot(kind="2d", **kwargs)
 
-    def plot3d(self, rotate_mode=1, save_path=None, **kwargs):
+    def plot3d(self, rotate_mode=1, save_path=None, update_fn=None, **kwargs):
         """Plot 3D brain"""
-        plot_data = {"rotate_mode": rotate_mode, "save_path": save_path}
+        plot_data = {
+            "rotate_mode": rotate_mode,
+            "save_path": save_path,
+            "update_fn": update_fn,
+        }
         self._plot(kind="3d", plot_data=plot_data, **kwargs)
 
     def get_bem_vertices_vox_lia(self):

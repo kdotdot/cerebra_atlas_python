@@ -16,7 +16,7 @@ class TestData(TestBase):
     def test_logging(self):
         logger.debug("Testing cerebra_atlas_python")
 
-    def test_cerebra(self):
+    def test_cerebra_colors(self):
         """
         Test methods
         """

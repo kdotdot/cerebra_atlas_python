@@ -67,7 +67,6 @@ class SourceSpaceData:
         self._src_space_points_path_lia = op.join(
             self.cache_path, f"{self.src_space_string}_src_pts_lia.npy"
         )
-        print("cache_path", self.cache_path)
 
     @cached_property
     def src_space_mask(self) -> np.ndarray:

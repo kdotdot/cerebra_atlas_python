@@ -61,7 +61,6 @@ def _get_forward(
     trans, src_space, bem, info, meg=False, eeg=True, n_jobs=-1
 ) -> mne.Forward:
 
-    print("==================EEG", eeg)
     fwd = mne.make_forward_solution(
         info,
         trans=trans,
