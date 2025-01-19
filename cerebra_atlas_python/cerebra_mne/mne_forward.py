@@ -4,7 +4,7 @@ ForwardMNE submodule for cerebra_atlas_python
 """
 from functools import cached_property
 import os
-from typing import Optional
+from typing import Optional, cast
 import mne
 import logging
 import os.path as op
@@ -13,49 +13,51 @@ from .mne_bem import BEMMNE
 from ..data import CerebraData
 from ..data._cache import cache_mne_forward
 from .mne_montage import MontageMNE
+from ..data._transforms import apply_trans
+
 
 logger = logging.getLogger(__name__)
 
 
-def get_forward_fsaverage(
-    trans=None, src_space=None, bem=None, info=None, meg=False, eeg=True, n_jobs=-1
-):
-    if info is None:
-        info = MontageMNE.get_info()
-    if (trans is None) or (src_space is None) or (bem is None):
-        fs_dir = mne.datasets.fetch_fsaverage()
-        trans_fif_path = os.path.join(fs_dir, "bem", "fsaverage-trans.fif")
-        src_fif_path = os.path.join(fs_dir, "bem", "fsaverage-ico-5-src.fif")
-        bem_fif_path = os.path.join(
-            fs_dir, "bem", "fsaverage-5120-5120-5120-bem-sol.fif"
-        )
+# def get_forward_fsaverage(
+#     trans=None, src_space=None, bem=None, info=None, meg=False, eeg=True, n_jobs=-1
+# ):
+#     if info is None:
+#         info = MontageMNE.get_info()
+#     if (trans is None) or (src_space is None) or (bem is None):
+#         fs_dir = mne.datasets.fetch_fsaverage()
+#         trans_fif_path = os.path.join(fs_dir, "bem", "fsaverage-trans.fif")
+#         src_fif_path = os.path.join(fs_dir, "bem", "fsaverage-ico-5-src.fif")
+#         bem_fif_path = os.path.join(
+#             fs_dir, "bem", "fsaverage-5120-5120-5120-bem-sol.fif"
+#         )
 
-        if trans is None:
-            logging.warning("trans not provided, using fsaverage")
-            trans = trans_fif_path
-        if src_space is None:
-            logging.warning("src_space not provided, using fsaverage")
-            # src = mne.setup_source_space(subject, spacing=sampling, surface='white',
-            #                         subjects_dir=subjects_dir, add_dist=False,
-            #                         n_jobs=-1)
-            src_space = src_fif_path
-        if bem is None:
-            logging.warning("bem not provided, using fsaverage")
-            bem = bem_fif_path
+#         if trans is None:
+#             logging.warning("trans not provided, using fsaverage")
+#             trans = trans_fif_path
+#         if src_space is None:
+#             logging.warning("src_space not provided, using fsaverage")
+#             # src = mne.setup_source_space(subject, spacing=sampling, surface='white',
+#             #                         subjects_dir=subjects_dir, add_dist=False,
+#             #                         n_jobs=-1)
+#             src_space = src_fif_path
+#         if bem is None:
+#             logging.warning("bem not provided, using fsaverage")
+#             bem = bem_fif_path
 
-    fwd = mne.make_forward_solution(
-        info,
-        trans=trans,
-        src=src_space,
-        bem=bem,
-        meg=meg,
-        eeg=eeg,
-        n_jobs=n_jobs,
-    )
-    return fwd
+#     fwd = mne.make_forward_solution(
+#         info,
+#         trans=trans,
+#         src=src_space,
+#         bem=bem,
+#         meg=meg,
+#         eeg=eeg,
+#         n_jobs=n_jobs,
+#     )
+#     return fwd
 
 
-def get_forward(
+def _get_forward(
     trans, src_space, bem, info, meg=False, eeg=True, n_jobs=-1
 ) -> mne.Forward:
 
@@ -101,6 +103,7 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
 
         self.montage_name = montage_name
         self.head_size = head_size
+        self.sfreq = None
 
         self.fixed_ori = fixed_ori
         self.meg: bool = meg
@@ -108,13 +111,17 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         self.n_jobs: int = n_jobs
         self.cache_result: bool = cache_result
 
-        self.trans = None
+        self._head_mri_trans = None
 
         # # Avoid recomputing/reloading fwd solution from disk
         # self._forward: mne.Forward | None = None
 
+    def get_forward(self):
+        # Access forward
+        return self.forward
+
     def assert_all_set(self):
-        if self.trans is None:
+        if self.head_mri_trans is None:
             raise ValueError("trans is not set")
         if self.src_space is None:
             raise ValueError("src_space is not set")
@@ -122,6 +129,36 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
             raise ValueError("bem is not set")
         if self.montage_name is None or self.head_size is None:
             raise ValueError("Info is not set. (montage_name or head_size) is not set")
+
+    @property
+    def trans_path(self):
+        assert self.head_size is not None, f"head_size is not set"
+        assert self.montage_name is not None, f"montage_name is not set"
+        return op.join(
+            self.cerebra_data.subjects_dir,
+            self.cerebra_data.subject_name,
+            f"corregistration/{self.montage_name}_{self.head_size}_trans.fif",
+        )
+
+    @property
+    def info(self):
+        assert (
+            self.montage_name is not None and self.head_size is not None
+        ), "Montage name and head size should be provided for montage info"
+        return MontageMNE.get_info(
+            montage_name=self.montage_name, head_size=self.head_size, sfreq=self.sfreq
+        )
+
+    @cached_property
+    def head_mri_trans(self):
+        # TODO: Does cache work when head size and montage name are changed?
+        assert op.exists(
+            self.trans_path
+        ), f"self.trans_path does not exist:{self.trans_path}"
+        self._head_mri_trans = cast(
+            mne.Transform, mne.read_trans(op.join(self.trans_path))
+        )
+        return self._head_mri_trans
 
     @property
     def fwd_string(self):
@@ -138,17 +175,19 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
             #     self.info = MontageMNE.get_info(
             #         montage_name=self.montage_name, head_size=self.head_size
             #     )
-            fwd = get_forward(
+            fwd = _get_forward(
                 src_space=self.src_space,
                 bem=self.bem,
                 info=self.info,
                 meg=self.meg,
                 eeg=self.eeg,
                 n_jobs=self.n_jobs,
-                trans=self.trans,
+                trans=self.head_mri_trans,
             )
             return fwd
 
         forward_path: str = op.join(self.cache_path, f"{self.fwd_string}.fif")
-        print(forward_path)
         return cache_mne_forward(compute_fn, forward_path, self.fixed_ori, self)
+
+    def apply_head_mri_trans(self, points):
+        return apply_trans(self.head_mri_trans, points)

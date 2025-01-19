@@ -1,41 +1,37 @@
 <H1 style="text-align: center;">CerebrA atlas Python</H1>
 
+<div style="display:flex;align-items:center;justify-content:center;background-color:aliceblue;padding:25px;flex-direction:column"><img src="./images/example.png" alt="BEM MANUAL EDIT" width=50%></img></div>
 
-
-
-<b>cerebra_atlas_python</b> offers Python 
-
-<a href="https://nist.mni.mcgill.ca/cerebra/">CerebrA</a> is an accurate non-linear registration of cortical and subcortical labelling from <a href="https://nist.mni.mcgill.ca/cerebra/">Mindboggle 101</a> to the <a href="https://nist.mni.mcgill.ca/cerebra/">symmetric MNI-ICBM2009c atlas</a>. <b>cerebra_atlas_python</b> abstracts the following:
-
-
-
-cerebra_atlas_python functionality
-
-abstract coordinate frame transformations
-
-https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/
-
-<div style="display:flex;align-items:center;justify-content:center;background-color:aliceblue;padding:25px;flex-direction:column"><img src="./images/example.png" alt="BEM MANUAL EDIT" width=50%></img><br/><small>Cerebra Atlas</small></div>
-
-MNIAverage: https://www.dropbox.com/scl/fi/zoff6ihk3711zn6phu2zt/MNIAverage.zip?rlkey=jrg63liehpuhus4suyyfmibuz&dl=0
-Cerebra Atlas: https://www.dropbox.com/scl/fi/ivvh2afex6idffmano3qj/10.12751_g-node.be5e62.zip?rlkey=ie3w8lbd5b5377xotsjgnwkrg&dl=0
-
-
+Cerebra Atlas Python is an open-source package to access and visualize the MNI-ICBM2009c average brain model, with its most up-to-date atlas: <a href="https://nist.mni.mcgill.ca/cerebra/">CerebrA</a>. Cerebra Atlas Python can be integrated with MNE for EEG source localization.
 
 ## USAGE / USE CASES
 
-### Easily access average brain volume. 
-Abstract coordinate frames
-
+### Plot
 ```
 from cerebra_atlas_python import CerebrA
 cerebra = CerebrA()
 cerebra.orthoview()
 ```
+<div>
+<div style="display:flex;align-items:center;justify-content:center;padding:25px;flex-direction:column"><img src="./images/orthoview_example.png" alt="BEM MANUAL EDIT" width=100%></img</div>
+</div>
 
-<div style="display:flex;align-items:center;justify-content:center;padding:25px;flex-direction:column"><img src="./images/orthoview_example.png" alt="BEM MANUAL EDIT" width=100%></img><br/><small>Cerebra Atlas</small></div>
+```
+from cerebra_atlas_python import CerebrA
+cerebra = CerebrA()
+cerebra.plot3d()
+```
+<div>
+<div style="display:flex;align-items:center;justify-content:center;padding:25px;flex-direction:column"><img  src="./images/example3d.png" alt="example3d" width=400px></img</div>
+</div>
 
 
+abstract coordinate frame transformations
+
+https://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/
+
+MNIAverage: https://www.dropbox.com/scl/fi/zoff6ihk3711zn6phu2zt/MNIAverage.zip?rlkey=jrg63liehpuhus4suyyfmibuz&dl=0
+Cerebra Atlas: https://www.dropbox.com/scl/fi/ivvh2afex6idffmano3qj/10.12751_g-node.be5e62.zip?rlkey=ie3w8lbd5b5377xotsjgnwkrg&dl=0
 
 
 ### REQUIREMENTS:
@@ -45,6 +41,7 @@ cerebra.orthoview()
 
 ### INSTALL
 Tested for Python 3.10.14
+Tested in Ubuntu 22? and MacOS M1
 
 #### Building wheels
 
@@ -208,6 +205,12 @@ CerebrA_in_head.mgz can be computed using Freesurfer and the following commands.
 |102   |1031       |Supramarginal             |102       |Left      |True    |#ff00ca|
 |103   |0          |White matter              |103       |          |        |#ffdddd|
 
+### TESTING
+```
+$ cd tests
+$ pip install pytest
+$ pytest
+```
 
 ### TODOS:
 

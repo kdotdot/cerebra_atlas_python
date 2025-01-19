@@ -24,6 +24,7 @@ class MontageMNE:
         Returns:
             mne.channels.DigMontage: MNE montage
         """
+
         original_montage = mne.channels.make_standard_montage(kind, head_size=head_size)  # type: ignore
         original_names_upper = [name.upper() for name in original_montage.ch_names]
         kept_ch_names_upper = (
@@ -73,6 +74,7 @@ class MontageMNE:
             else montage_name.split("-downsample")[0]
         )
         kept_ch_names = None if kind == montage_name else electrode_names[montage_name]
+        print(f"{kind= } {kept_ch_names= }")
         montage = cls._get_standard_montage(
             kept_ch_names=kept_ch_names, kind=kind, head_size=head_size
         )
