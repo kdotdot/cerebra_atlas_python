@@ -14,9 +14,16 @@ logger = logging.getLogger(__name__)
 
 
 class BEMMNE:
-    def __init__(self, cache_path: str, subjects_dir: str, **kwargs):
-        self.bem_conductivity: Tuple[float, float, float] = (0.33, 0.0042, 0.33)
-        self.bem_ico: int = 4
+    def __init__(
+        self,
+        cache_path: str,
+        subjects_dir: str,
+        bem_conductivity: Tuple[float, float, float] = (0.33, 0.0042, 0.33),
+        bem_ico: int = 4,
+        **kwargs,
+    ):
+        self.bem_conductivity: Tuple[float, float, float] = bem_conductivity
+        self.bem_ico: int = bem_ico
         self._bem_model: dict | None = None
         self._bem = None
         self.subjects_dir = subjects_dir

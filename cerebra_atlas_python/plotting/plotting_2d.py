@@ -11,7 +11,7 @@ from .volumes import *
 
 
 def plot_brain_slice_2d(
-    plot_data,
+    _plot_data,
     axis=0,
     fixed_value=None,
     plot_regions=True,
@@ -57,10 +57,10 @@ def plot_brain_slice_2d(
 ):
 
     assert (
-        "affine" in plot_data.keys() and "cerebra_volume" in plot_data.keys()
-    ), "affine and cerebra_volume should be provided in plot_data"
-    affine = plot_data["affine"]
-    cerebra_volume = plot_data["cerebra_volume"]
+        "affine" in _plot_data.keys() and "cerebra_volume" in _plot_data.keys()
+    ), "affine and cerebra_volume should be provided in _plot_data"
+    affine = _plot_data["affine"]
+    cerebra_volume = _plot_data["cerebra_volume"]
 
     x_label, y_label = get_ax_labels(axis)
 
@@ -473,7 +473,8 @@ def orthoview(
     if axs is None:
         fig, axs = get_orthoview_axes(figsize=figsize)
 
-    print(type(axs), axs, isinstance(axs, np.ndarray))
+    print(type(axs), isinstance(axs, np.ndarray))
+
     if not isinstance(axs, np.ndarray):
         raise ValueError("axs should be a np array of Axes")
 
@@ -496,9 +497,51 @@ def orthoview(
     return fig, axs
 
 
+# https://github.com/RayleighLord/RayleighLordAnimations/blob/master/publication%20quality%20figures/fig_config.py
+def figure_features(tex=True, font="serif", dpi=180):
+    """Customize figure settings.
+    Args:
+        tex (bool, optional): use LaTeX. Defaults to True.
+        font (str, optional): font type. Defaults to "serif".
+        dpi (int, optional): dots per inch. Defaults to 180.
+    """
+    plt.rcParams.update(
+        {
+            "font.size": 20,
+            "font.family": font,
+            "text.usetex": tex,
+            "figure.subplot.top": 0.9,
+            "figure.subplot.right": 0.9,
+            "figure.subplot.left": 0.15,
+            "figure.subplot.bottom": 0.12,
+            "figure.subplot.hspace": 0.4,
+            "savefig.dpi": dpi,
+            "savefig.format": "png",
+            "axes.titlesize": 16,
+            "axes.labelsize": 18,
+            "axes.axisbelow": True,
+            "xtick.direction": "in",
+            "ytick.direction": "in",
+            "xtick.major.size": 5,
+            "xtick.minor.size": 2.25,
+            "xtick.major.pad": 7.5,
+            "xtick.minor.pad": 7.5,
+            "ytick.major.pad": 7.5,
+            "ytick.minor.pad": 7.5,
+            "ytick.major.size": 5,
+            "ytick.minor.size": 2.25,
+            "xtick.labelsize": 16,
+            "ytick.labelsize": 16,
+            "legend.fontsize": 16,
+            "legend.framealpha": 1,
+            "figure.titlesize": 16,
+            "lines.linewidth": 2,
+        }
+    )
+
+
 class Plots2D:
     def __init__(self, tex=True, font="serif", dpi=180, **kwargs):
-        figure_features(tex=tex, font=font, dpi=dpi)
         pass
 
     def plot_data_2d(self, **kwargs):

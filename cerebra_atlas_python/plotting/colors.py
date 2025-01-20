@@ -1,7 +1,7 @@
 import matplotlib
 from matplotlib.colors import ListedColormap
 import numpy as np
-from typing import cast
+from typing import cast, Dict, Tuple, TypedDict, List
 
 
 def rgb_to_hex_str(color_rgb: np.ndarray) -> str:
@@ -59,7 +59,7 @@ def get_cmap():
 
 
 def normalize_colors_input(
-    src_space_labels, colors: None | str | list[str] | np.ndarray
+    src_space_n_points: int, _colors: List[str] | List[Tuple] | str | Tuple | None
 ):
     # """This function takes in the src_space_labels array of points
     # and the colors input for plotting. The function rises error if the
@@ -83,11 +83,13 @@ def normalize_colors_input(
     #     ValueError: if colors value is invalid
     # """
     # print(f"{type(colors)= }")
-    if type(colors) == str:
-        colors = hex_str_to_rgb(colors)
-        colors = [colors] * len(src_space_labels)
-    elif type(colors) == tuple:
-        colors = [colors] * len(src_space_labels)
+    if type(_colors) == str:
+        colors = hex_str_to_rgb(_colors)
+        colors = [colors] * src_space_n_points
+    elif type(_colors) == tuple:
+        colors = [_colors] * src_space_n_points
+    else:
+        colors = None  # Default color
     # print(f"{colors= }")
 
     # elif type(colors) ==

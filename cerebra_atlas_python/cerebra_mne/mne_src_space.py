@@ -38,9 +38,8 @@ class SourceSpaceData:
                 bigger means more downsampling (less src space points). Defaults to 3.
             source_space_include_wm (bool, optional): Whether to include whitematter
                 in the source space. Defaults to False.
-            source_space_include_non_cortical (bool, optional):Whether to include non-cortical
+            source_space_include_non_cortical (bool, optional): Whether to include non-cortical
                 regions in the source space. Defaults to False.
-            kwargs: Additional arguments to pass to CerebraData
         """
 
         self.cache_path = cache_path

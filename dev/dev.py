@@ -1,34 +1,40 @@
 import numpy as np
 from cerebra_atlas_python import CerebrA
 
+import matplotlib.pyplot as plt
+
 cerebra = CerebrA()
 
 # Color based on region_id (default)
-cerebra.plot3d()
+# cerebra.plot_2d()
+# plt.show()
+
+cerebra.plot_2d(kind="orthoview")
+plt.show()
 
 # Plot all pink
-# cerebra.plot3d(colors="#ff00ff")
+# cerebra.plot_3d(colors="#ff00ff", plot_src_space=True)
 
-cerebra.plot3d(colors=(0, 1, 0))
+# cerebra.plot_3d(colors=(0, 1, 0))
 
-# Color based on position
-cerebra.plot3d(colors=cerebra.src_space_points / 255)
-
-
-# Plot dynamic data
-MAX_FRAMES = 600
+# # Color based on position
+# cerebra.plot_3d(colors=cerebra.src_space_points / 255)
 
 
-def update(vis, source_space_pc, *, frame):
-    frame_looped = frame % MAX_FRAMES
-    elapsed_loop_frames = frame_looped / MAX_FRAMES
-    colors = np.repeat(
-        [[elapsed_loop_frames, elapsed_loop_frames, elapsed_loop_frames]],
-        len(source_space_pc.data),
-        axis=0,
-    )
-    source_space_pc.update_colors(colors)
-    vis.update_geometry(source_space_pc.get_o3d())
+# # Plot dynamic data
+# MAX_FRAMES = 600
 
 
-cerebra.plot3d(colors="#ff00ff", update_fn=update)
+# def update(vis, source_space_pc, *, frame):
+#     frame_looped = frame % MAX_FRAMES
+#     elapsed_loop_frames = frame_looped / MAX_FRAMES
+#     colors = np.repeat(
+#         [[elapsed_loop_frames, elapsed_loop_frames, elapsed_loop_frames]],
+#         len(source_space_pc.data),
+#         axis=0,
+#     )
+#     source_space_pc.update_colors(colors)
+#     vis.update_geometry(source_space_pc.get_o3d())
+
+
+# cerebra.plot3d(colors="#ff00ff", update_fn=update)

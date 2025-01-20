@@ -5,49 +5,6 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import MultipleLocator
 
 
-# https://github.com/RayleighLord/RayleighLordAnimations/blob/master/publication%20quality%20figures/fig_config.py
-def figure_features(tex=True, font="serif", dpi=180):
-    """Customize figure settings.
-    Args:
-        tex (bool, optional): use LaTeX. Defaults to True.
-        font (str, optional): font type. Defaults to "serif".
-        dpi (int, optional): dots per inch. Defaults to 180.
-    """
-    plt.rcParams.update(
-        {
-            "font.size": 20,
-            "font.family": font,
-            "text.usetex": tex,
-            "figure.subplot.top": 0.9,
-            "figure.subplot.right": 0.9,
-            "figure.subplot.left": 0.15,
-            "figure.subplot.bottom": 0.12,
-            "figure.subplot.hspace": 0.4,
-            "savefig.dpi": dpi,
-            "savefig.format": "png",
-            "axes.titlesize": 16,
-            "axes.labelsize": 18,
-            "axes.axisbelow": True,
-            "xtick.direction": "in",
-            "ytick.direction": "in",
-            "xtick.major.size": 5,
-            "xtick.minor.size": 2.25,
-            "xtick.major.pad": 7.5,
-            "xtick.minor.pad": 7.5,
-            "ytick.major.pad": 7.5,
-            "ytick.minor.pad": 7.5,
-            "ytick.major.size": 5,
-            "ytick.minor.size": 2.25,
-            "xtick.labelsize": 16,
-            "ytick.labelsize": 16,
-            "legend.fontsize": 16,
-            "legend.framealpha": 1,
-            "figure.titlesize": 16,
-            "lines.linewidth": 2,
-        }
-    )
-
-
 def get_2d_fig_ax(
     fig: Optional[Figure] = None,
     ax: Optional[Axes] = None,
@@ -82,8 +39,6 @@ def get_2d_fig_ax(
     if y_lims is not None:
         ax.set_ylim(y_lims)
 
-    if use_latex_figures:
-        figure_features()
     if add_grid:
         add_grid_to_ax(ax)
 
