@@ -22,7 +22,11 @@ class MNE(ForwardMNE):
         self.cerebra_data = cerebra_data
         ForwardMNE.__init__(self, cerebra_data=self.cerebra_data, **kwargs)
 
-    def _corregistration(self, montage_name=None, head_size=None, sfreq=None):
+    def corregistration(self, montage_name=None, head_size=None, sfreq=None):
+        """Manually generate fiducials.fif and head-mri-trans.fif
+        Saved to standard location (cerebra_data/FreeSurfer/bem/)
+        """
+
         assert (
             montage_name is not None or self.montage_name is not None
         ), "Montage name should be provided for corregistration"

@@ -43,6 +43,8 @@ Cerebra Atlas: https://www.dropbox.com/scl/fi/ivvh2afex6idffmano3qj/10.12751_g-n
 Tested for Python 3.10.14
 Tested in Ubuntu 22? and MacOS M1
 
+
+
 #### Building wheels
 
 ```
@@ -50,6 +52,18 @@ $ git clone https://github.com/kdotdot/cerebra_atlas_python.git
 $ cd cerebra_atlas_python
 $ pip install -r requirements.txt
 $ pip install --editable .
+```
+
+### TESTING
+```
+$ cd tests
+$ pip install pytest
+$ pytest
+```
+
+### GENERATE DOCS
+```
+$ ./scripts/generate_docs.sh
 ```
 
 ### COMPUTING BRAIN DATA (optional)
@@ -205,12 +219,7 @@ CerebrA_in_head.mgz can be computed using Freesurfer and the following commands.
 |102   |1031       |Supramarginal             |102       |Left      |True    |#ff00ca|
 |103   |0          |White matter              |103       |          |        |#ffdddd|
 
-### TESTING
-```
-$ cd tests
-$ pip install pytest
-$ pytest
-```
+
 
 ### TODOS:
 

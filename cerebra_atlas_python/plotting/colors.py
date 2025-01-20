@@ -61,27 +61,27 @@ def get_cmap():
 def normalize_colors_input(
     src_space_labels, colors: None | str | list[str] | np.ndarray
 ):
-    """This function takes in the src_space_labels array of points
-    and the colors input for plotting. The function rises error if the
-    colors input (provided by user as a parameter) is invalid. If colors
-    is None then the default value is returned (cortical colors).
+    # """This function takes in the src_space_labels array of points
+    # and the colors input for plotting. The function rises error if the
+    # colors input (provided by user as a parameter) is invalid. If colors
+    # is None then the default value is returned (cortical colors).
 
-    Valid colors input:
-        - None: Defaults to cortical colors
-        - str | rgb: Solid color for whole brain
-        - 1D array: Should be of shape (len(src_space_labels))
-        - 2D array: Should be of shape (len(src_space_labels), time)
+    # Valid colors input:
+    #     - None: Defaults to cortical colors
+    #     - str | rgb: Solid color for whole brain
+    #     - 1D array: Should be of shape (len(src_space_labels))
+    #     - 2D array: Should be of shape (len(src_space_labels), time)
 
-    Args:
-        src_space_labels np.ndarray: Contains an array of src space labels [int]
-        colors (None | str | list[str]): _description_
+    # Args:
+    #     src_space_labels np.ndarray: Contains an array of src space labels [int]
+    #     colors (None | str | list[str]): _description_
 
-    Returns:
-        _type_: _description_
+    # Returns:
+    #     _type_: _description_
 
-    Raises:
-        ValueError: if colors value is invalid
-    """
+    # Raises:
+    #     ValueError: if colors value is invalid
+    # """
     # print(f"{type(colors)= }")
     if type(colors) == str:
         colors = hex_str_to_rgb(colors)
