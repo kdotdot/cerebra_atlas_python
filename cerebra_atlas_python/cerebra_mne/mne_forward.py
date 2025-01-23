@@ -132,6 +132,7 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
         # Source ori 2 = "FIFFV_MNE_FREE_ORI"
         # if self._forward is not None and self._forward["source_ori"] == 2 and self.fixed_ori:
         def compute_fn(self):
+            self.head_mri_trans
             self.assert_all_set()
             logger.debug("Generating forward solution")
             # if self.info is None:
@@ -145,10 +146,9 @@ class ForwardMNE(SourceSpaceMNE, BEMMNE):
                 meg=self.meg,
                 eeg=self.eeg,
                 n_jobs=self.n_jobs,
-                trans=self.trans,
+                trans=self.head_mri_trans,
             )
             return fwd
 
         forward_path: str = op.join(self.cache_path, f"{self.fwd_string}.fif")
-        print(forward_path)
         return cache_mne_forward(compute_fn, forward_path, self.fixed_ori, self)

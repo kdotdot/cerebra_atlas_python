@@ -249,14 +249,16 @@ class SourceSpaceMNE(SourceSpaceData):
             src_space_pts = np.indices([256, 256, 256])[
                 :, self.src_space_mask_lia
             ].T  # Transform src space mask to pc
+
             normals = np.repeat([[0, 0, 1]], len(src_space_pts), axis=0)
 
-            # rr = point_cloud_to_voxel(src_space_pts)
-            # rr = np.argwhere(rr != 0)
-            # rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
+            rr = point_cloud_to_voxel(src_space_pts)
+            rr = np.argwhere(rr != 0)
+            rr = mne.transforms.apply_trans(self.vox_mri_t, rr)
 
-            pos = dict(rr=src_space_pts, nn=normals)
+            pos = dict(rr=rr, nn=normals)
             src_space = mne.setup_volume_source_space(pos=pos, bem=self.bem)  # type: ignore
+
             return src_space
             print("Computing src space")
             # normals = np.repeat([[0, 0, 1]], len(self.src_space_points), axis=0)

@@ -34,10 +34,25 @@ class CerebrA(CerebraData, Plotting, MNE):
         """Manually generate fiducials.fif and head-mri-trans.fif
         Saved to standard location (cerebra_data/FreeSurfer/bem/)
         """
-        assert (
-            "montage" in kwargs or "montage_name" in kwargs
-        ), "Either MME montage or montage_name should be provided for corregistration"
-        self._corregistration(**kwargs)
+        if "montage" in kwargs:
+            montage_name = kwargs["montage"]
+        elif "montage_name" in kwargs:
+            montage_name = kwargs["montage_name"]
+        elif self.montage_name is not None:
+            montage_name = self.montage_name
+        else:
+            raise ValueError("Montage name not provided")
+
+        if "head_size" in kwargs:
+            head_size = kwargs["head_size"]
+        elif self.head_size is not None:
+            head_size = self.head_size
+        else:
+            raise ValueError("Head size not provided")
+
+        assert head_size is not None, "Head size not provided"
+        assert montage_name is not None, "Montage name not provided"
+        self._corregistration(montage_name=montage_name, head_size=head_size, **kwargs)
 
     def _prepare_plot_data(self, plot_data_=None):
         plot_data = {

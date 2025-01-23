@@ -14,6 +14,8 @@ from cerebra_atlas_python.data import CerebraData
 from .mne_forward import ForwardMNE
 from .mne_montage import MontageMNE
 from ..data._transforms import apply_trans
+from .downsampled_montages import montage_names
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,20 @@ class MNE(ForwardMNE):
         self.cerebra_data = cerebra_data
         ForwardMNE.__init__(self, cerebra_data=self.cerebra_data, **kwargs)
 
-        self.montage_name = montage_name
+        self._montage_name = montage_name
         self.head_size = head_size
         self.sfreq = None
+
+    @property
+    def montage_name(self):
+        return self._montage_name
+
+    @montage_name.setter
+    def montage_name(self, value):
+        assert (
+            value is None or value in montage_names
+        ), f"Montage name {value} not in {montage_names}"
+        self._montage_name = value
 
     @property
     def trans_path(self):
@@ -47,7 +60,7 @@ class MNE(ForwardMNE):
         )
 
     @property
-    def head_mri_trans(self) -> mne.Transform:
+    def head_mri_trans(self):
         # Set trans
         assert op.exists(
             self.trans_path
@@ -56,7 +69,7 @@ class MNE(ForwardMNE):
         return self.trans
 
     def apply_head_mri_trans(self, points):
-        return apply_trans(self.head_mri_trans, points)
+        return apply_trans(self.head_mri_trans, points)  # type: ignore
 
     def get_forward(self):
 
@@ -83,6 +96,12 @@ class MNE(ForwardMNE):
         logger.info(f"Save trans file to {trans_default_path} after aligment")
 
         logger.info(f"Will be automatically renamed to {self.trans_path}")
+
+        print(info)
+        print(f"info_path: {info_path}")
+        print(f"subjects_dir: {self.cerebra_data.subjects_dir}")
+        print(f"subject: {self.cerebra_data.subject_name}")
+
         mne.gui.coregistration(
             inst=info_path,
             subjects_dir=self.cerebra_data.subjects_dir,
