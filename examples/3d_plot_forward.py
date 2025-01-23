@@ -2,8 +2,8 @@ from cerebra_atlas_python import CerebrA, setup_logging
 
 setup_logging("DEBUG")
 cerebra = CerebrA()
-cerebra.montage_name = "GSN-HydroCel-129-downsample-109"
-cerebra.head_size = 0.1027
+cerebra.montage_name = "standard_1020-downsample-64-10-10"
+cerebra.head_size = 0.10
 
 # cerebra.plot3d()
 # cerebra.plot3d(plot_src_space=False, plot_montage=True)

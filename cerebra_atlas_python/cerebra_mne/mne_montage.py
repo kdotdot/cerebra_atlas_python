@@ -24,6 +24,7 @@ class MontageMNE:
         Returns:
             mne.channels.DigMontage: MNE montage
         """
+
         original_montage = mne.channels.make_standard_montage(kind, head_size=head_size)  # type: ignore
         original_names_upper = [name.upper() for name in original_montage.ch_names]
         kept_ch_names_upper = (

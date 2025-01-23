@@ -32,15 +32,14 @@ class SourceSpaceData:
         """_summary_
 
         Args:
-            cache_path (_type_, optional): Path to cerebra cache dir. Defaults to None.
+            cache_path (_type_, optional): Path to cerebra cache dir.
             cerebra_data (cerebra_data): CerebraData object
             source_space_grid_size (int, optional): Grid size for generating the source space,
                 bigger means more downsampling (less src space points). Defaults to 3.
             source_space_include_wm (bool, optional): Whether to include whitematter
                 in the source space. Defaults to False.
-            source_space_include_non_cortical (bool, optional):Whether to include non-cortical
+            source_space_include_non_cortical (bool, optional): Whether to include non-cortical
                 regions in the source space. Defaults to False.
-            kwargs: Additional arguments to pass to CerebraData
         """
 
         self.cache_path = cache_path
@@ -243,9 +242,10 @@ class SourceSpaceMNE(SourceSpaceData):
         self.use_cache = False
         self._src_space_path = op.join(self.cache_path, f"{self.src_space_string}.fif")
 
-    @property  # cached_property
+    @cached_property  # cached_property
     def src_space(self):
         def compute_fn(self):
+            print("Computing src space...")
             src_space_pts = np.indices([256, 256, 256])[
                 :, self.src_space_mask_lia
             ].T  # Transform src space mask to pc

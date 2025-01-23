@@ -258,7 +258,7 @@ def move_volume_from_ras_to_lia(volume: np.ndarray):
     return volume
 
 
-def apply_trans(trans: np.ndarray, data: np.ndarray) -> np.ndarray:
+def apply_trans(trans: np.ndarray | Transform, data: np.ndarray) -> np.ndarray:
     """Apply transformation to data
 
     Args:

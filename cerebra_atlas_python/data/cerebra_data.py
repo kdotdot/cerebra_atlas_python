@@ -77,6 +77,42 @@ class CerebraData(Labels, Image, FreeSurfer):
 
         return cache_pkl(compute_fn, self._cerebra_sparse_path, self)
 
+    def get_affine(self):
+        """Returns affine matrix
+
+        Returns:
+            np.ndarray: Affine matrix.
+        """
+        return self.affine
+
+    def get_brain_voxel_volume(self):
+        """Returns a (256,256,256) np voxel array.
+        Values ranging 0-103 represent region-ids from CerebrA
+
+        Returns:
+            np.ndarray: (256,256,256) numpy array.
+        """
+        return self.cerebra_volume
+
+    def get_metadata(self):
+        """Returns a pandas DataFrame with region metadata
+
+        Returns:
+            pd.DataFrame: Region metadata
+        """
+        return self.cerebra_labels
+
+    def get_brain_sparse(self) -> Dict[int, np.ndarray]:
+        """Returns Dictionary containing sparse voxel grid for
+        each region in RAS space[1-103]
+
+        Returns:
+            Dict[int, np.ndarray]: Dictionary with
+            keys=region_id and
+            values=[[x,y,z]...] points belonging to each region
+        """
+        return self.cerebra_sparse
+
     def _calculate_points_from_region_id(self, region_id):
         # Find points for each region. Should only be called once per region
         # Then, a sparse representation of the region data is stored/loaded as a .npy file

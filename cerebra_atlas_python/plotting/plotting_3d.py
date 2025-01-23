@@ -42,17 +42,19 @@ class Plots3D:
         colors = plot_data.get("colors", None)
         rotate_mode = plot_data.get("rotate_mode", 1)
         save_path = plot_data.get("save_path", None)
-
-        print()
+        update_fn = plot_data.get("update_fn", None)
 
         vis = create_plot(draw_bounding_box=False)
         # SRC SPACE
+        src_space_pc = None
         if plot_src_space:
             colors_hex = get_cmap_colors()
             colors_cortical = np.array(
                 [colors_hex[label] for label in src_space_labels]
             )
-            print(f"{colors=} {colors_cortical=}")
+            print(
+                f"{colors=} {colors_cortical=} {src_space_points.shape= } {src_space_labels.shape= } {colors_cortical.shape= }"
+            )
             src_space_pc = PointCloud(
                 src_space_points, colors_cortical if colors is None else colors
             )
@@ -126,7 +128,9 @@ class Plots3D:
 
         rotate_camera(vis, rotate_mode=rotate_mode)
         # run(vis)
-        if save_path is None:
+        if update_fn is not None:
+            run(vis, update_fn, src_space_pc)
+        elif save_path is None:
             run(vis)
 
         else:

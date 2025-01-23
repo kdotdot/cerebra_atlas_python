@@ -29,6 +29,10 @@ class Labels:
         # Metadata
         self.region_ids = np.sort(self._label_details["CerebrA ID"].unique())
 
+    @property
+    def cerebra_labels(self):
+        return self._label_details
+
     def _is_valid_region_id(self, region_id: int) -> bool:
         """Checks if region id is valid
 
