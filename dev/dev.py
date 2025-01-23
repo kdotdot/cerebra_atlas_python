@@ -9,8 +9,23 @@ cerebra = CerebrA()
 # cerebra.plot_2d()
 # plt.show()
 
-cerebra.plot_2d(kind="orthoview")
+# cerebra.plot_2d(axis=0)
+# plt.show()
+
+# cerebra.plot_2d(axis=1)
+# plt.show()
+
+# cerebra.plot_2d(axis=2)
+# plt.show()
+
+cerebra.plot_2d(pt=[126, 125, 152], pt_text="[126, 125, 152]")
 plt.show()
+
+cerebra.plot_2d(kind="orthoview", fixed_value=150, plot_empty=False, plot_affine=True)
+plt.show()
+
+# cerebra.plot_2d(fixed_value=150, plot_regions=True, plot_whitematter=True)
+# plt.show()
 
 # Plot all pink
 # cerebra.plot_3d(colors="#ff00ff", plot_src_space=True)

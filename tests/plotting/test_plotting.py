@@ -2,7 +2,7 @@
 import unittest
 import logging
 import numpy as np
-from cerebra_atlas_python.plotting.plotting import Plotting
+from dev.old.plotting import Plotting
 from tests.test_base import TestBase
 
 
