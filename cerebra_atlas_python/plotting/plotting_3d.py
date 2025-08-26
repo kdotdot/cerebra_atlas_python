@@ -12,131 +12,123 @@ from .cerebra_o3d import PointCloud, Mesh, add_drawable, create_plot, run, rotat
 from ..data._transforms import lia_points_to_ras_points
 
 
-class Plots3D:
-    def __init__(self, **kwargs):
-        pass
+# class Plots3D:
+#     def __init__(self, **kwargs):
+#         pass
 
-    def plot_data_3d(
-        self,
-        plot_data,
-        plot_src_space=True,
-        plot_bem=False,
-        plot_montage=False,
-        **kwargs,
-    ):
-        """Plot 3D brain"""
-        assert (
-            "src_space_points" in plot_data.keys()
-        ), "src_space_points should be provided in plot_data"
 
-        cerebra_volume = plot_data["cerebra_volume"]
-        src_space_points = plot_data["src_space_points"]
-        src_space_labels = plot_data["src_space_labels"]
-        cortical_color = plot_data["cortical_color"]
-        bem_colors = plot_data["bem_colors"]
-        bem_vertices_vox_ras = plot_data["bem_vertices_vox_ras"]
-        bem_triangles = plot_data["bem_triangles"]
-        bem_normals_vox_ras = plot_data["bem_normals_vox_ras"]
-        info = plot_data["info"]
-        fiducials = plot_data["fiducials"]
-        colors = plot_data.get("colors", None)
-        rotate_mode = plot_data.get("rotate_mode", 1)
-        save_path = plot_data.get("save_path", None)
-        update_fn = plot_data.get("update_fn", None)
+def plot_data_3d(
+    plot_data,
+    plot_src_space=True,
+    plot_bem=False,
+    plot_montage=False,
+    **kwargs,
+):
+    """Plot 3D brain"""
+    assert (
+        "src_space_points" in plot_data.keys()
+    ), "src_space_points should be provided in plot_data"
 
-        vis = create_plot(draw_bounding_box=False)
-        # SRC SPACE
-        src_space_pc = None
-        if plot_src_space:
-            colors_hex = get_cmap_colors()
-            colors_cortical = np.array(
-                [colors_hex[label] for label in src_space_labels]
-            )
-            print(
-                f"{colors=} {colors_cortical=} {src_space_points.shape= } {src_space_labels.shape= } {colors_cortical.shape= }"
-            )
-            src_space_pc = PointCloud(
-                src_space_points, colors_cortical if colors is None else colors
-            )
-            vis = add_drawable(
-                vis, src_space_pc, reset_bounding_box=True, translate=False
-            )
+    cerebra_volume = plot_data["cerebra_volume"]
+    src_space_points = plot_data["src_space_points"]
+    src_space_labels = plot_data["src_space_labels"]
+    # cortical_color = plot_data["cortical_color"]
+    # bem_colors = plot_data["bem_colors"]
+    # bem_vertices_vox_ras = plot_data["bem_vertices_vox_ras"]
+    # bem_triangles = plot_data["bem_triangles"]
+    # bem_normals_vox_ras = plot_data["bem_normals_vox_ras"]
+    info = plot_data["info"]
+    fiducials = plot_data["fiducials"]
+    colors = plot_data.get("colors", None)
+    rotate_mode = plot_data.get("rotate_mode", 1)
+    save_path = plot_data.get("save_path", None)
+    update_fn = plot_data.get("update_fn", None)
 
-        # BEM
-        if plot_bem:
-            bem_pcs = [
-                PointCloud(bem_vertices_vox_ras[i], bem_colors[i]) for i in range(3)
-            ]
-            bem_mesh_0 = Mesh(
-                bem_vertices_vox_ras[0],
-                bem_triangles[0],
-                bem_normals_vox_ras[0],
-                bem_colors[0],
-            )
-            bem_mesh_1 = Mesh(
-                bem_vertices_vox_ras[1],
-                bem_triangles[1],
-                bem_normals_vox_ras[1],
-                bem_colors[1],
-            )
-            bem_mesh_2 = Mesh(
-                bem_vertices_vox_ras[2],
-                bem_triangles[2],
-                bem_normals_vox_ras[2],
-                bem_colors[2],
-            )
-            vis = add_drawable(
-                vis, bem_mesh_0, reset_bounding_box=True, translate=False
-            )
+    vis = create_plot(draw_bounding_box=False)
+    # SRC SPACE
+    src_space_pc = None
+    if plot_src_space:
+        colors_hex = get_cmap_colors()
+        colors_cortical = np.array([colors_hex[label] for label in src_space_labels])
+        print(
+            f"{colors=} {colors_cortical=} {src_space_points.shape= } {src_space_labels.shape= } {colors_cortical.shape= }"
+        )
+        src_space_pc = PointCloud(
+            src_space_points, colors_cortical if colors is None else colors
+        )
+        vis = add_drawable(vis, src_space_pc, reset_bounding_box=True, translate=False)
 
-        # MONTAGE
-        if plot_montage:
-            fiducial_points = np.array([fiducial["r"] for fiducial in fiducials])
-            montage = info.get_montage()
-            montage_fiducials_mri = np.array([dig["r"] for dig in montage.dig[:3]])
-            montage_pts_mri = np.array([dig["r"] for dig in montage.dig[3:]])
+    # BEM
+    if plot_bem:
+        bem_pcs = [PointCloud(bem_vertices_vox_ras[i], bem_colors[i]) for i in range(3)]
+        bem_mesh_0 = Mesh(
+            bem_vertices_vox_ras[0],
+            bem_triangles[0],
+            bem_normals_vox_ras[0],
+            bem_colors[0],
+        )
+        bem_mesh_1 = Mesh(
+            bem_vertices_vox_ras[1],
+            bem_triangles[1],
+            bem_normals_vox_ras[1],
+            bem_colors[1],
+        )
+        bem_mesh_2 = Mesh(
+            bem_vertices_vox_ras[2],
+            bem_triangles[2],
+            bem_normals_vox_ras[2],
+            bem_colors[2],
+        )
+        vis = add_drawable(vis, bem_mesh_0, reset_bounding_box=True, translate=False)
 
-            montage_fiducials = self.apply_head_mri_trans(montage_fiducials_mri)
-            montage_pts = self.apply_head_mri_trans(montage_pts_mri)
+    # MONTAGE
+    if plot_montage:
+        fiducial_points = np.array([fiducial["r"] for fiducial in fiducials])
+        montage = info.get_montage()
+        montage_fiducials_mri = np.array([dig["r"] for dig in montage.dig[:3]])
+        montage_pts_mri = np.array([dig["r"] for dig in montage.dig[3:]])
 
-            montage_fiducials = self.apply_mri_vox_t(montage_fiducials)
-            montage_fiducials_mri = self.apply_mri_vox_t(montage_fiducials_mri)
-            montage_pts = self.apply_mri_vox_t(montage_pts)
-            montage_pts_mri = self.apply_mri_vox_t(montage_pts_mri)
-            fiducial_points = self.apply_mri_vox_t(fiducial_points)
+        montage_fiducials = self.apply_head_mri_trans(montage_fiducials_mri)
+        montage_pts = self.apply_head_mri_trans(montage_pts_mri)
 
-            montage_fiducials = lia_points_to_ras_points(montage_fiducials)
-            montage_fiducials_mri = lia_points_to_ras_points(montage_fiducials_mri)
-            montage_pts = lia_points_to_ras_points(montage_pts)
-            montage_pts_mri = lia_points_to_ras_points(montage_pts_mri)
-            fiducial_points = lia_points_to_ras_points(fiducial_points)
+        montage_fiducials = self.apply_mri_vox_t(montage_fiducials)
+        montage_fiducials_mri = self.apply_mri_vox_t(montage_fiducials_mri)
+        montage_pts = self.apply_mri_vox_t(montage_pts)
+        montage_pts_mri = self.apply_mri_vox_t(montage_pts_mri)
+        fiducial_points = self.apply_mri_vox_t(fiducial_points)
 
-            montage_fiducials_pc = PointCloud(montage_fiducials, [1, 0, 1])
-            montage_pts_pc = PointCloud(montage_pts, [1, 0.4, 0])
-            montage_fiducials_mri_pc = PointCloud(montage_fiducials_mri, [1, 0, 1])
-            montage_pts_mri_pc = PointCloud(montage_pts_mri, [1, 0.4, 0])
-            fiducial_points_pc = PointCloud(fiducial_points, [0, 1, 0])
+        montage_fiducials = lia_points_to_ras_points(montage_fiducials)
+        montage_fiducials_mri = lia_points_to_ras_points(montage_fiducials_mri)
+        montage_pts = lia_points_to_ras_points(montage_pts)
+        montage_pts_mri = lia_points_to_ras_points(montage_pts_mri)
+        fiducial_points = lia_points_to_ras_points(fiducial_points)
 
-            vis = add_drawable(
-                vis,
-                fiducial_points_pc,
-                montage_pts_pc,
-                montage_fiducials_pc,
-                reset_bounding_box=True,
-                translate=False,
-            )
+        montage_fiducials_pc = PointCloud(montage_fiducials, [1, 0, 1])
+        montage_pts_pc = PointCloud(montage_pts, [1, 0.4, 0])
+        montage_fiducials_mri_pc = PointCloud(montage_fiducials_mri, [1, 0, 1])
+        montage_pts_mri_pc = PointCloud(montage_pts_mri, [1, 0.4, 0])
+        fiducial_points_pc = PointCloud(fiducial_points, [0, 1, 0])
 
-        rotate_camera(vis, rotate_mode=rotate_mode)
-        # run(vis)
-        if update_fn is not None:
-            run(vis, update_fn, src_space_pc)
-        elif save_path is None:
-            run(vis)
+        vis = add_drawable(
+            vis,
+            fiducial_points_pc,
+            montage_pts_pc,
+            montage_fiducials_pc,
+            reset_bounding_box=True,
+            translate=False,
+        )
 
-        else:
+    rotate_camera(vis, rotate_mode=rotate_mode)
+    # run(vis)
+    if update_fn is not None:
+        run(vis, update_fn, src_space_pc)
+    elif save_path is None:
+        run(vis)
 
-            def update_fn(vis, frame):
-                vis.capture_screen_image(save_path)
-                vis.close()
+    else:
 
-            run(vis, update_fn=update_fn)
+        def update_fn(vis, frame):
+            vis.capture_screen_image(save_path)
+            vis.close()
+
+        run(vis, update_fn=update_fn)

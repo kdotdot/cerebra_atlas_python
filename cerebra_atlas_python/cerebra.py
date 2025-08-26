@@ -1,5 +1,4 @@
-"""Main cerebra class
-"""
+"""Main cerebra class"""
 
 import logging
 import os.path as op
@@ -12,6 +11,7 @@ from .data._transforms import (
     merge_voxel_grids,
 )
 from .plotting.plotting_2d import orthoview, plot_brain_slice_2d, figure_features
+from .plotting.plotting_3d import plot_data_3d
 from .plotting.colors import normalize_colors_input
 from .cerebra_mne import MNE, MontageMNE
 from typing import Dict, Tuple, TypedDict, List, Union
@@ -249,7 +249,7 @@ class CerebrA(CerebraData, MNE):
         assert kind in [
             "single",
             "orthoview",
-        ], f"Wrong kind value, 2d plot can be single or orthoview"
+        ], f"Wrong kind value, 2d plot should be 'single' or 'orthoview'"
 
         assert axis in [0, 1, 2], f"Wrong axis value,should be 0,1 or 2"
 
@@ -299,20 +299,22 @@ class CerebrA(CerebraData, MNE):
             fig, axs = orthoview(**shared_args, axs=axs)
             return fig, axs
 
-    # def plot_3d(
-    #     self,
-    #     rotate_mode=1,
-    #     save_path=None,
-    #     update_fn=None,
-    #     **kwargs: Unpack[Plot3DArgs],
-    # ):
-    #     """Plot 3D brain"""
-    #     plot_data_ = {
-    #         "rotate_mode": rotate_mode,
-    #         "save_path": save_path,
-    #         "update_fn": update_fn,
-    #     }
-    #     self._plot(kind="3d", plot_data_=plot_data_, **kwargs)
+    def plot_3d(
+        self,
+        rotate_mode=1,
+        save_path=None,
+        update_fn=None,
+        **kwargs: Unpack[Plot3DArgs],
+    ):
+        """Plot 3D brain"""
+        # plot_data_ = {
+        #     "rotate_mode": rotate_mode,
+        #     "save_path": save_path,
+        #     "update_fn": update_fn,
+        # }
+        # Prepare plot data
+        plot_data = self._prepare_plot_data()
+        plot_data_3d(plot_data)  # **kwargs
 
     def _prepare_plot_data(self, colors=None, _plot_data=None):
         # Prepare plot data

@@ -9,4 +9,6 @@ cerebra.head_size = 0.10
 # cerebra.plot3d(plot_src_space=False, plot_montage=True)
 # cerebra.plot3d(plot_src_space=False, plot_bem=True)
 
-cerebra.plot3d(plot_src_space=True, plot_bem=False, plot_montage=True)
+# plot_src_space=True, plot_bem=False, plot_montage=True
+
+cerebra.plot_3d()
