@@ -64,6 +64,7 @@ def plot_brain_slice_2d(
     assert (
         "affine" in _plot_data.keys() and "cerebra_volume" in _plot_data.keys()
     ), "affine and cerebra_volume should be provided in _plot_data"
+    # print(f"_plot_data keys: {_plot_data.keys()}")
     affine = _plot_data["affine"]
     cerebra_volume = _plot_data["cerebra_volume"]
 
@@ -137,7 +138,7 @@ def plot_brain_slice_2d(
             size=relative_positions_text_size,
             c="white" if plot_empty else "black",
             horizontalalignment="center",
-            verticalalignment="bottom",
+            verticalalignment="top",
         )
         # TOP
         ax.text(
