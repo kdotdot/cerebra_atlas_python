@@ -11,4 +11,4 @@ cerebra.head_size = 0.10
 
 # plot_src_space=True, plot_bem=False, plot_montage=True
 
-cerebra.plot_3d()
+cerebra.plot_3d(colors="#cccccc")

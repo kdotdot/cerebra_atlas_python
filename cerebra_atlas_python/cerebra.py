@@ -301,19 +301,20 @@ class CerebrA(CerebraData, MNE):
 
     def plot_3d(
         self,
+        colors=None,
         rotate_mode=1,
         save_path=None,
         update_fn=None,
         **kwargs: Unpack[Plot3DArgs],
     ):
         """Plot 3D brain"""
-        # plot_data_ = {
-        #     "rotate_mode": rotate_mode,
-        #     "save_path": save_path,
-        #     "update_fn": update_fn,
-        # }
+        plot_data_ = {
+            "rotate_mode": rotate_mode,
+            "save_path": save_path,
+            "update_fn": update_fn,
+        }
         # Prepare plot data
-        plot_data = self._prepare_plot_data()
+        plot_data = self._prepare_plot_data(colors=colors, _plot_data=plot_data_)
         plot_data_3d(plot_data)  # **kwargs
 
     def _prepare_plot_data(self, colors=None, _plot_data=None):
