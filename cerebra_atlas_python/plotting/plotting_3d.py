@@ -5,9 +5,10 @@
 
 
 import numpy as np
+from webcolors import rgb_to_hex
 
 
-from .colors import get_cmap_colors
+from .colors import get_cmap_colors, rgb_to_hex_str
 from .cerebra_o3d import PointCloud, Mesh, add_drawable, create_plot, run, rotate_camera
 from ..data._transforms import lia_points_to_ras_points
 
@@ -22,7 +23,9 @@ def plot_data_3d(
     plot_src_space=True,
     plot_bem=False,
     plot_montage=False,
-    **kwargs,
+    rotate_mode=1,
+    save_path=None,
+    update_fn=None,
 ):
     """Plot 3D brain"""
     assert (
@@ -32,6 +35,7 @@ def plot_data_3d(
     cerebra_volume = plot_data["cerebra_volume"]
     src_space_points = plot_data["src_space_points"]
     src_space_labels = plot_data["src_space_labels"]
+    colors = plot_data["colors"]
     # cortical_color = plot_data["cortical_color"]
     # bem_colors = plot_data["bem_colors"]
     # bem_vertices_vox_ras = plot_data["bem_vertices_vox_ras"]
@@ -39,10 +43,6 @@ def plot_data_3d(
     # bem_normals_vox_ras = plot_data["bem_normals_vox_ras"]
     info = plot_data["info"]
     fiducials = plot_data["fiducials"]
-    colors = plot_data.get("colors", None)
-    rotate_mode = plot_data.get("rotate_mode", 1)
-    save_path = plot_data.get("save_path", None)
-    update_fn = plot_data.get("update_fn", None)
 
     vis = create_plot(draw_bounding_box=False)
     # SRC SPACE
@@ -50,9 +50,7 @@ def plot_data_3d(
     if plot_src_space:
         colors_hex = get_cmap_colors()
         colors_cortical = np.array([colors_hex[label] for label in src_space_labels])
-        print(
-            f"{colors=} {colors_cortical=} {src_space_points.shape= } {src_space_labels.shape= } {colors_cortical.shape= }"
-        )
+
         src_space_pc = PointCloud(
             src_space_points, colors_cortical if colors is None else colors
         )
@@ -127,8 +125,8 @@ def plot_data_3d(
 
     else:
 
-        def update_fn(vis, frame):
+        def _update_fn(vis, frame):
             vis.capture_screen_image(save_path)
             vis.close()
 
-        run(vis, update_fn=update_fn)
+        run(vis, update_fn=_update_fn)

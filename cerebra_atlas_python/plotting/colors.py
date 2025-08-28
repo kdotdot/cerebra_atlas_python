@@ -1,7 +1,17 @@
 import matplotlib
 from matplotlib.colors import ListedColormap
 import numpy as np
-from typing import cast, Dict, Tuple, TypedDict, List
+from typing import Union, Tuple, List
+
+
+ColorsInputType = Union[
+    str,
+    List[str],
+    Tuple[float, float, float],
+    List[Tuple[float, float, float]],
+    List[List[Tuple[float, float, float]]],
+    List[List[str]],
+]
 
 
 def rgb_to_hex_str(color_rgb: np.ndarray) -> str:
@@ -58,40 +68,50 @@ def get_cmap():
     return newcmp
 
 
-def normalize_colors_input(
-    src_space_n_points: int, _colors: List[str] | List[Tuple] | str | Tuple | None
-):
-    # """This function takes in the src_space_labels array of points
-    # and the colors input for plotting. The function rises error if the
-    # colors input (provided by user as a parameter) is invalid. If colors
-    # is None then the default value is returned (cortical colors).
+def normalize_colors_input(colors: ColorsInputType, src_space_n_points: int):
+    """This function validates the colors user input for plotting.
+    The function rises error if the colors input is invalid.
 
-    # Valid colors input:
-    #     - None: Defaults to cortical colors
-    #     - str | rgb: Solid color for whole brain
-    #     - 1D array: Should be of shape (len(src_space_labels))
-    #     - 2D array: Should be of shape (len(src_space_labels), time)
+    Valid colors input:
+        - str | rgb: Solid color for whole brain
+        - 1D array: Should be of shape (len(src_space_labels))
+        - 2D array: Should be of shape (len(src_space_labels), time)
 
-    # Args:
-    #     src_space_labels np.ndarray: Contains an array of src space labels [int]
-    #     colors (None | str | list[str]): _description_
+    Args:
+        colors (ColorsInputType): colors
+        src_space_n_points (int): Number of points in the source space.
+          Used for validation of colors array length
 
-    # Returns:
-    #     _type_: _description_
 
-    # Raises:
-    #     ValueError: if colors value is invalid
-    # """
+    Returns:
+        List[Tuple[int,int,int]] | List[List[Tuple[int,int,int]]]: normalized
+        colors. List of rgb colors, one for each src space pt
+
+
+    Raises:
+        ValueError: if colors value is invalid
+    """
     # print(f"{type(colors)= }")
-    if type(_colors) == str:
-        colors = hex_str_to_rgb(_colors)
-        colors = [colors] * src_space_n_points
-    elif type(_colors) == tuple:
-        colors = [_colors] * src_space_n_points
+    if type(colors) == np.ndarray:
+        colors = list(colors)
+
+    if type(colors) == str:
+        _colors = hex_str_to_rgb(colors)
+        _colors = [_colors] * src_space_n_points
+    elif type(colors) == tuple:
+        _colors = [colors] * src_space_n_points
+    elif type(colors) == list:
+        if len(colors) != src_space_n_points:
+            raise ValueError(
+                f"colors array ({len(colors)}) should match the total number of points in the src space"
+            )
+        _colors = [colors]
     else:
-        colors = None  # Default color
+        raise ValueError(
+            "colors input is not valid. Should be str, list[str], list[list[str]], rgb tuple, list[rgb tuple], list[list[rgb tuple]]"
+        )
     # print(f"{colors= }")
 
     # elif type(colors) ==
 
-    return colors
+    return _colors

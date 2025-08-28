@@ -2,9 +2,8 @@
 import unittest
 import logging
 import numpy as np
-from dev.old.plotting import Plotting
 from tests.test_base import TestBase
-
+from cerebra_atlas_python.plotting.colors import normalize_colors_input
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +18,11 @@ class TestData(TestBase):
         """
         Test methods
         """
-        cerebra_plotting = Plotting()
         logger.info("Plotting init ok")
+
+    def test_colors_input(self):
+        self.assertIsNot(normalize_colors_input("#ffffff", 10), None)
+        self.assertIs(len(normalize_colors_input("#ffffff", 10)), 10)
 
 
 if __name__ == "__main__":
