@@ -5,9 +5,6 @@
 
 
 import numpy as np
-from webcolors import rgb_to_hex
-
-
 from .colors import get_cmap_colors, rgb_to_hex_str
 from .cerebra_o3d import PointCloud, Mesh, add_drawable, create_plot, run, rotate_camera
 from ..data._transforms import lia_points_to_ras_points
@@ -36,6 +33,8 @@ def plot_data_3d(
     src_space_points = plot_data["src_space_points"]
     src_space_labels = plot_data["src_space_labels"]
     colors = plot_data["colors"]
+    if colors.ndim == 3:
+        colors = colors[:, 0, :]
     # cortical_color = plot_data["cortical_color"]
     # bem_colors = plot_data["bem_colors"]
     # bem_vertices_vox_ras = plot_data["bem_vertices_vox_ras"]

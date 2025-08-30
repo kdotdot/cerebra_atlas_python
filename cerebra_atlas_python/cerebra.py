@@ -283,7 +283,6 @@ class CerebrA(CerebraData, MNE):
         colors: ColorsInputType | None = None,
         rotate_mode=1,
         save_path=None,
-        # update_fn=None,
     ):
         """
         Plot a brain volume in 3D.
@@ -304,27 +303,31 @@ class CerebrA(CerebraData, MNE):
         """
         # Prepare plot data
         plot_data = self._prepare_plot_data(colors=colors)
+        update_fn = None
 
-        if type(plot_data["colors"] == list):
-            print("a------------------------", len(plot_data["colors"]))
-            plot_data["colors"] = plot_data["colors"][0]
+        if (
+            isinstance(plot_data["colors"], np.ndarray)
+            and plot_data["colors"].ndim == 3
+        ):
+            # Plot dynamic data
+            MAX_FRAMES = min(60000, plot_data["colors"].shape[-1])
 
-        # Plot dynamic data
-        MAX_FRAMES = 600
+            def update(vis, source_space_pc, *, frame):
+                frame_looped = frame % MAX_FRAMES
+                # elapsed_loop_frames = frame_looped / MAX_FRAMES
+                colors = plot_data["colors"][:, frame_looped, :]
+                source_space_pc.update_colors(colors)
+                vis.update_geometry(source_space_pc.get_o3d())
 
-        def update(vis, source_space_pc, *, frame):
-            frame_looped = frame % MAX_FRAMES
-            elapsed_loop_frames = frame_looped / MAX_FRAMES
-            colors = np.repeat(
-                [[elapsed_loop_frames, elapsed_loop_frames, elapsed_loop_frames]],
-                len(source_space_pc.data),
-                axis=0,
+            update_fn = update
+
+        elif plot_data["colors"].ndim > 3:
+            raise ValueError(
+                f"colors ndim should be 2 or 3 {plot_data['colors'].shape= }"
             )
-            source_space_pc.update_colors(colors)
-            vis.update_geometry(source_space_pc.get_o3d())
 
         plot_data_3d(
-            plot_data, rotate_mode=rotate_mode, save_path=save_path
+            plot_data, rotate_mode=rotate_mode, save_path=save_path, update_fn=update_fn
         )  # **kwargs
 
     def _prepare_plot_data(

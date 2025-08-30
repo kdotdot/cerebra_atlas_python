@@ -11,6 +11,7 @@ ColorsInputType = Union[
     List[Tuple[float, float, float]],
     List[List[Tuple[float, float, float]]],
     List[List[str]],
+    np.ndarray,
 ]
 
 
@@ -105,13 +106,10 @@ def normalize_colors_input(colors: ColorsInputType, src_space_n_points: int):
             raise ValueError(
                 f"colors array ({len(colors)}) should match the total number of points in the src space"
             )
-        _colors = [colors]
+        _colors = colors
     else:
         raise ValueError(
             "colors input is not valid. Should be str, list[str], list[list[str]], rgb tuple, list[rgb tuple], list[list[rgb tuple]]"
         )
-    # print(f"{colors= }")
 
-    # elif type(colors) ==
-
-    return _colors
+    return np.array(_colors)
