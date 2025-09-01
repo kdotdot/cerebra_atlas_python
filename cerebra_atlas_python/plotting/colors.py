@@ -2,7 +2,9 @@ import matplotlib
 from matplotlib.colors import ListedColormap
 import numpy as np
 from typing import Union, Tuple, List
-
+import matplotlib.colors
+import matplotlib.cm
+import matplotlib.pyplot as plt
 
 ColorsInputType = Union[
     str,
@@ -113,3 +115,44 @@ def normalize_colors_input(colors: ColorsInputType, src_space_n_points: int):
         )
 
     return np.array(_colors)
+
+
+def get_scalar_colormap(vmin, vmax, cmap_name):
+    cNorm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+    scalar_map = matplotlib.cm.ScalarMappable(norm=cNorm, cmap=plt.get_cmap(cmap_name))
+    return scalar_map
+
+
+def apply_colormap(array, cmap_name, vmin_vmax=None, plot_cmap=True):
+    if vmin_vmax is None:
+        vmin = np.min(array)
+        vmax = np.max(array)
+    else:
+        vmin, vmax = vmin_vmax
+    scalar_map = get_scalar_colormap(vmin, vmax, cmap_name)
+
+    if plot_cmap:
+
+        image_data = [np.linspace(0, 1, 100)]
+        image_data = np.repeat(image_data, 10, axis=0)
+        plt.imshow(image_data, cmap=cmap_name)
+
+        # Remove y axis
+        plt.gca().yaxis.set_visible(False)
+        # Set X axis between 0 and 100 to be between vmin and vmax
+        plt.xticks(
+            ticks=[0, 25, 50, 75, 99],
+            labels=[
+                f"{vmin:.2e}",
+                f"{vmin + (vmax - vmin) * 0.25:.2e}",
+                f"{(vmin + vmax) / 2:.2e}",
+                f"{vmin + (vmax - vmin) * 0.75:.2e}",
+                f"{vmax:.2e}",
+            ],
+        )
+
+        # Plt show non blocking
+        plt.show(block=False)
+
+    colors = scalar_map.to_rgba(array)
+    return colors[..., :3]
