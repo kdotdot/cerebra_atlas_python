@@ -200,7 +200,17 @@ def rotate_camera(vis, rotate_mode=1):
 
 
 def run(vis, update_fn=None, *update_fn_args, MAX_FRAME=int(1e6), **update_fn_kwargs):
+    # Print fps
+    # last_time = time.time()
     for frame in range(MAX_FRAME):
+
+        # Print fps
+        # if frame % 10 == 0:
+        #     current_time = time.time()
+        #     fps = 10 / (current_time - last_time)
+        #     last_time = current_time
+        #     print(f"Frame: {frame}, FPS: {fps:.2f}")
+
         vis.poll_events()
 
         if not vis.poll_events():

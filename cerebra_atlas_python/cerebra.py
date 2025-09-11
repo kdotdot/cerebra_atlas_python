@@ -304,16 +304,19 @@ class CerebrA(CerebraData, MNE):
         # Prepare plot data
         plot_data = self._prepare_plot_data(colors=colors)
         update_fn = None
+        import time
 
         if (
             isinstance(plot_data["colors"], np.ndarray)
             and plot_data["colors"].ndim == 3
         ):
             # Plot dynamic data
-            MAX_FRAMES = min(60000, plot_data["colors"].shape[-1])
+            MAX_FRAMES = min(60000, plot_data["colors"].shape[1])
 
             def update(vis, source_space_pc, *, frame):
                 frame_looped = frame % MAX_FRAMES
+                # print(frame_looped, plot_data["colors"][:, frame_looped, :])
+                # time.sleep(1)
                 # elapsed_loop_frames = frame_looped / MAX_FRAMES
                 colors = plot_data["colors"][:, frame_looped, :]
                 source_space_pc.update_colors(colors)
