@@ -1,5 +1,6 @@
 """Main cerebra class"""
 
+import time
 import logging
 import os.path as op
 from appdirs import user_cache_dir
@@ -283,6 +284,7 @@ class CerebrA(CerebraData, MNE):
         colors: ColorsInputType | None = None,
         rotate_mode=1,
         save_path=None,
+        update_interval: float | None = 0.01,
     ):
         """
         Plot a brain volume in 3D.
@@ -304,30 +306,36 @@ class CerebrA(CerebraData, MNE):
         # Prepare plot data
         plot_data = self._prepare_plot_data(colors=colors)
         update_fn = None
-        import time
+        if isinstance(plot_data["colors"], np.ndarray):
+            if plot_data["colors"].ndim != 3:
+                if plot_data["colors"].ndim > 3:
+                    raise ValueError(
+                        f"colors ndim should be 2 or 3 {plot_data['colors'].shape= }"
+                    )
+            else:
 
-        if (
-            isinstance(plot_data["colors"], np.ndarray)
-            and plot_data["colors"].ndim == 3
-        ):
-            # Plot dynamic data
-            MAX_FRAMES = min(60000, plot_data["colors"].shape[1])
+                logger.debug("Ploting dynamic 3D data")
+                # Plot dynamic data
+                MAX_FRAMES = min(60000, plot_data["colors"].shape[1])
 
-            def update(vis, source_space_pc, *, frame):
-                frame_looped = frame % MAX_FRAMES
-                # print(frame_looped, plot_data["colors"][:, frame_looped, :])
-                # time.sleep(1)
-                # elapsed_loop_frames = frame_looped / MAX_FRAMES
-                colors = plot_data["colors"][:, frame_looped, :]
-                source_space_pc.update_colors(colors)
-                vis.update_geometry(source_space_pc.get_o3d())
+                last_update = 0
+                update_interval = 0.1  # seconds per frame (2 FPS animation)
 
-            update_fn = update
+                def update(vis, source_space_pc, *, frame):
+                    nonlocal last_update
+                    if time.time() - last_update < update_interval:
+                        return
+                    last_update = time.time()
 
-        elif plot_data["colors"].ndim > 3:
-            raise ValueError(
-                f"colors ndim should be 2 or 3 {plot_data['colors'].shape= }"
-            )
+                    frame_looped = frame % MAX_FRAMES
+                    # print(frame_looped, plot_data["colors"][:, frame_looped, :])
+                    # time.sleep(1)
+                    # elapsed_loop_frames = frame_looped / MAX_FRAMES
+                    colors = plot_data["colors"][:, frame_looped, :]
+                    source_space_pc.update_colors(colors)
+                    vis.update_geometry(source_space_pc.get_o3d())
+
+                update_fn = update
 
         plot_data_3d(
             plot_data, rotate_mode=rotate_mode, save_path=save_path, update_fn=update_fn

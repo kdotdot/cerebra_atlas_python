@@ -39,6 +39,8 @@ class MNE(ForwardMNE):
             montage_name=montage_name, head_size=head_size, sfreq=None
         )
         info_path = op.join(tempfile.gettempdir(), "temp_info.fif")
+        if op.exists(info_path):
+            os.remove(info_path)
         info.save(info_path)
         trans_default_path = op.join(
             self.cerebra_data.subjects_dir, self.cerebra_data.subject_name, "trans.fif"

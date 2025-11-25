@@ -114,7 +114,6 @@ def create_plot(
     vis.get_render_option().show_coordinate_frame = True
     vis.get_render_option().mesh_show_wireframe = True
     vis.get_render_option().mesh_color_option = o3d.visualization.MeshColorOption.Normal  # type: ignore
-    print(vis.get_render_option())
     if draw_bounding_box:
         bb_points = np.array(
             [
@@ -194,7 +193,7 @@ def rotate_camera(vis, rotate_mode=1):
     elif rotate_mode == "perfil_izquierdo":
         ctr.rotate(cam_params.intrinsic.width // 2.0, 0)
     else:
-        raise ValueError("Invalid rotate mode")
+        print("Invalid rotate mode")
     ctr.change_field_of_view(step=-10)
     ctr.set_zoom(0.7)
 
